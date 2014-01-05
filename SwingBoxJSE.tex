@@ -10,7 +10,7 @@
 %============================================================================
 % Šablonu upravil: Ing. Jaroslav Dytrych, xdytry00@stud.fit.vutbr.cz
 %============================================================================
-\documentclass[cover]{fitthesis} % odevzdani do wisu - odkazy jsou barevné
+\documentclass[cover]{cls/fitthesis} % odevzdani do wisu - odkazy jsou barevné
 %\documentclass[cover,print]{fitthesis} % pro tisk - odkazy jsou černé
 %\documentclass[english,print]{fitthesis} % pro tisk - odkazy jsou černé
 %      \documentclass[english]{fitthesis}
@@ -53,6 +53,14 @@
 \usepackage{epstopdf}
 \newcommand\csuv[1]{\quotedblbase #1\textquotedblleft}
 
+\usepackage{algorithm2e}
+\usepackage{amsmath}
+\numberwithin{algocf}{chapter} 
+\newenvironment{algoritmus}[1][htb]
+  {\renewcommand{\algorithmcfname}{Kód}%
+   \begin{algorithm}[#1]%
+  }{\end{algorithm}}
+
 % =======================================================================
 % balíček "hyperref" vytváří klikací odkazy v pdf, pokud tedy použijeme pdflatex
 % problém je, že balíček hyperref musí být uveden jako poslední, takže nemůže
@@ -87,17 +95,18 @@
 %---------------------------------------------------------------------------
 \projectinfo{
   %Prace
-  project=DP,               %typ prace BP
+  project=SP,               %typ prace BP
   year=2014,                %rok
   date=\today,              %datum odevzdani
   %Nazev prace
-  title.cs=Podpora JavaScriptu v zobrazovacím stroji HTML,  %nazev prace v cestine
-  title.en=JavaScript Support in an HTML Rendering Engine,       %nazev prace v anglictine
-  %Autor
+  title.cs=Podpora JavaScriptu v zobrazovacím\\ stroji HTML,  %nazev prace v
+  % cestine
+  title.en=JavaScript Support in an HTML Rendering Engine,       %nazev prace
+  % v anglictine Autor
   author=Radim Loskot,      %jmeno prijmeni autora
-  author.title.p=Bc.
+  author.title.p=Bc.,
   %Ustav
-  department=UPGM,          % zkratka ustavu
+  department=UIFS,          % zkratka ustavu
   %Skolitel
   supervisor=Radek Burget, %jmeno prijmeni skolitele
   supervisor.title.p=Ing.,   %titul pred jmenem (nepovinne)
@@ -122,8 +131,7 @@
 \abstract[en]{This Master’s thesis ...}
 
 %Klicova slova (cesky, anglicky)
-\keywords[cs]{JavaSctipt, stroj, Java, HTML, CSSBox, Rhino, webový prohlížeč, skriptovací Java API,
-kódů, Android, OpenCV}
+\keywords[cs]{JavaSctipt, stroj, Java, HTML, CSSBox, Rhino, webový prohlížeč, skriptovací Java API}
 \keywords[en]{JavaSctipt, engine, Java, HTML, CSSBox, Rhino, web browser, Java Scripting API}
 
 %Prohlaseni
@@ -161,7 +169,7 @@ finální aplikace.}
   \makeatletter
   \def\@openbib@code{\addcontentsline{toc}{chapter}{Literatura}}
   \makeatother
-  \bibliographystyle{czechiso}
+  \bibliographystyle{bst/czechiso}
 \else 
   \makeatletter
   \def\@openbib@code{\addcontentsline{toc}{chapter}{Literature}}
@@ -180,6 +188,11 @@ finální aplikace.}
   \renewcommand{\appendixpagename}{Přílohy}
   \renewcommand{\appendixtocname}{Přílohy}
   \renewcommand{\appendixname}{Příloha}
+  %\newcounter{algseccnt}
+  %\newcounter{algsubseccnt}[algseccnt]
+  %\addtocounter{algseccnt}{1}
+  %\addtocounter{algsubseccnt}{1} % same
+  %\newcommand{\algcaption}[1]{\item[\bf #1] {\em #2}}
 \fi
   \appendixpage
 \ifczech

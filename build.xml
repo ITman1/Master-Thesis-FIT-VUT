@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 
+* Ant script for translation of master thesis
+* Author: Radim Loskot
+* E-mail: radim.loskot AT gmail com
+ -->
+<project basedir="." default="all" name="MasterThesis"> 
+    <property name="author.login" value="xlosko01"/>  
+    <property name="thesis.name" value="SwingBoxJSE"/>
+    <property name="input.resources" value="fig"/>
+    <property name="output.dir" value="out"/>
+    
+    <target name="clean">
+        <delete dir="${output.dir}" />
+    </target>
+    
+    <target name="init">
+        <mkdir dir="${output.dir}"/>
+    </target>
+    
+	<target name="pdflatex">
+        <exec executable="pdflatex">
+            <arg value="-output-directory=${output.dir}"/>
+            <arg value="${tex.source.name}"/>
+        </exec>
+    </target>
+	
+    <target depends="init" name="text">
+        <antcall target="pdflatex">
+		    <param name="tex.source.name" value="${thesis.name}"/>
+		</antcall>
+        <exec executable="bibtex">
+            <arg value="${output.dir}/${thesis.name}"/>
+        </exec>
+        <antcall target="pdflatex">
+		    <param name="tex.source.name" value="${thesis.name}"/>
+		</antcall>
+		<antcall target="pdflatex">
+		    <param name="tex.source.name" value="${thesis.name}"/>
+		</antcall>
+    </target>
+    
+	<target depends="init" name="desky">
+        <antcall target="pdflatex">
+		    <param name="tex.source.name" value="desky"/>
+		</antcall>
+    </target>
+    
+	<target depends="clean, desky, text" name="all">
+		<copy file="${output.dir}/${thesis.name}.pdf" tofile="${output.dir}/${thesis.name}_copy.pdf" overwrite="true"/>
+        <exec executable="pdftk">
+            <arg value="A=${output.dir}/${thesis.name}_copy.pdf"/>
+            <arg value="B=${input.resources}/zadani.pdf"/>
+            <arg value="cat"/>
+            <arg value="A1-2"/>
+            <arg value="B1-end"/>
+            <arg value="A3-end"/>
+            <arg value="output"/>
+            <arg value="${output.dir}/${thesis.name}.pdf"/>
+        </exec>
+		<delete file="${output.dir}/${thesis.name}_copy.pdf"/>
+    </target>
+	
+	<target depends="all" name="pack">
+        <exec executable="tar">
+            <arg value="czvf"/>
+            <arg value="dp-${author.login}.tar.gz"/>
+            <arg value="*.tex"/>
+            <arg value="*.bib"/>
+            <arg value="*.bst"/>
+            <arg value="./fig/*"/>
+            <arg value="./cls/*"/>
+            <arg value="${thesis.name}.pdf"/>
+            <arg value="build.xml"/>
+            <arg value="Changelog"/>
+        </exec>
+    </target>
+</project>
