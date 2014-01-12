@@ -1,14 +1,14 @@
 #TeXlipse project settings
-#Sat Jan 04 18:46:15 CET 2014
+#Sun Jan 05 18:28:56 CET 2014
 markTmpDer=true
 builderNum=2
 outputDir=
 makeIndSty=
 bibrefDir=
 outputFormat=pdf
-tempDir=tmp
-mainTexFile=document.tex
-outputFile=document.pdf
+tempDir=out
+mainTexFile=SwingBoxJSE.tex
+outputFile=SwingBoxJSE.pdf
 langSpell=cs
 markDer=true
 srcDir=

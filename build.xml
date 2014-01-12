@@ -11,7 +11,7 @@
     <property name="output.dir" value="out"/>
     
     <target name="clean">
-        <delete dir="${output.dir}" />
+        <!--<delete dir="${output.dir}" />-->
     </target>
     
     <target name="init">
