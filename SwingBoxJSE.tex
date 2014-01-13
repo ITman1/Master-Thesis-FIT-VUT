@@ -183,21 +183,21 @@ finální aplikace.}
 
   % Prilohy
   % ---------------------------------------------
-%  \appendix
-%\ifczech
-%  \renewcommand{\appendixpagename}{Přílohy}
-%  \renewcommand{\appendixtocname}{Přílohy}
-%  \renewcommand{\appendixname}{Příloha}
-%\fi
-%  \appendixpage
-%\ifczech
-%  \section*{Seznam příloh}
-%  \addcontentsline{toc}{section}{Seznam příloh}
-%\else
-%  \section*{List of Appendices}
-%  \addcontentsline{toc}{section}{List of Appendices}
-%\fi
-%  \startcontents[chapters]
-%  \printcontents[chapters]{l}{0}{\setcounter{tocdepth}{1}}
-%  \input{prilohy} % viz. prilohy.tex
+  \appendix
+\ifczech
+  \renewcommand{\appendixpagename}{Přílohy}
+  \renewcommand{\appendixtocname}{Přílohy}
+  \renewcommand{\appendixname}{Příloha}
+\fi
+  \appendixpage
+\ifczech
+  \section*{Seznam příloh}
+  \addcontentsline{toc}{section}{Seznam příloh}
+\else
+  \section*{List of Appendices}
+  \addcontentsline{toc}{section}{List of Appendices}
+\fi
+  \startcontents[chapters]
+  \printcontents[chapters]{l}{0}{\setcounter{tocdepth}{1}}
+  \input{prilohy} % viz. prilohy.tex
 \end{document}

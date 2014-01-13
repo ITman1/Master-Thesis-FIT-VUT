@@ -5,8 +5,107 @@
 \label{Chapter.Introducion}
 Úvodní text.
 
-\chapter{Analýza renderovacího stroje CSSBox a komponenty SwingBox}
-\label{Chapter.CSSBoxAndSwingBox}
+\chapter{Analýza použitých technik a závislostí}
+\label{Chapter.DependenciesAnalysis}
+
+V rámci práce se budeme zabývat integrací podpory skriptování v JavaScriptu ve stroji CSSBox. Abychom mohli provést návrh knihovny implementující rozšíření stroje CSSBox, je zapotřebí upřesnit, jak jsou skripty v HTML dokumentech reprezentovány, jak jsou vykonávány a do jakého rozhraní je budeme integrovat.
+
+Problematikou skriptování v HTML dokumentech se zabývá kapitola \ref{Chapter.DependenciesAnalysis.ScriptsInHTML}. Na projekt CSSBox, jeho architekturu je zaměřena kapitola \ref{Chapter.DependenciesAnalysis.CSSBox}. Komponenta, která bude použita pro zobrazování HTML dokumentů a při implementaci rozšíření je popsána v kapitole \ref{Chapter.DependenciesAnalysis.SwingBox}. 
+
+\section{Klientské skripty v HTML dokumentu}
+\label{Chapter.DependenciesAnalysis.ScriptsInHTML}
+
+Klientský skript je program, který může být doprovázet, nebo být přímo vložen do HTML dokumentu. Skript je vykonáván na straně klienta buď po načtení celého dokumentu, nebo poté, co je skript načten. 
+
+\bigskip \noindent Skripty mohou:
+
+\begin{itemize}
+  \item sloužit k modifikaci obsahu dokumentu, jakmile je načten;
+  \item být spuštěny událostmi ovládacích prvků;
+  \item být využity pro validaci a odesílání obsahu formuláře na server.
+\end{itemize}
+
+\bigskip \noindent Pro vložení skriptu do HTML dokumentu máme dva způsoby:
+
+\begin{enumerate}
+  \item Uvést skript v dokumentu ve speciální značce \texttt{<script>};
+  \item Vložit skript do atributu události elementů, které podporují volání akcí. 
+\end{enumerate}
+
+Skripty ve značkách \texttt{<skript>} jsou spouštěny samostatně a vždy bez závislosti na výskytu některé události. Při zpracovávání dokumentu jsou jednotlivé skripty v těch značkách vykonány. Jak spouštění skriptů probíhá a v jakém pořadí si popíšeme v této kapitole.
+
+V rámci samotné značky \texttt{<script>} můžeme podle doporučené specifikace HTML 5 specifikovat celkem 6 atributů. Všechny atributy řídí vykonávání skriptu v určitém momentu zpracovávání skriptu a jejich dynamická změna nemá žádný efekt na průběh skriptu. Specifikace uvádí následující atributy:
+
+\begin{enumerate}
+  \item \textbf{src} -- URL souboru s externím skriptem;
+  \item \textbf{type} -- MIME typ skriptu;
+  \item \textbf{charset} -- kódování souboru s externím skriptem;
+  \item \textbf{async} -- udává, zda bude skript spuštěn asynchronně;
+  \item \textbf{defer} -- specifikuje pozdržení až do dokončení načtení dokumentu;
+  \item \textbf{crossorigin} -- specifikuje umístění zdroje skriptu při selhání načítání skriptu. 
+\end{enumerate}
+
+Kromě samotných atributů, specifikace HTML 5 doporučuje asociovat s elementem \texttt{<script>} speciální příznaky. Příznaky jsou nastavovány na základě toho, kde byl <script> element zpracován a na základě výše zmíněných atributů. Uvedenými příznaky ve specifikaci jsou příznaky:
+
+\begin{enumerate}
+  \item \textbf{\texttt{already-started}} -- značí, zda byl skript již vykonán. Při klonování elementu \texttt{<script>} se musí příznak sdílet.
+  \item \textbf{\texttt{parser-inserted}} -- Příznak je nastaven pro všechny skripty vložené do dokumentu HTML nebo XML parserem, např. při vložení pomocí \texttt{document.write()}. Skripty vložené při vytváření dokumentu nemají tento příznak nastaven.
+  \item \textbf{\texttt{force-async}} -- během počátečního zpracování dokumentu je příznak nastaven. Skripty nemají tento příznak nastaven, pokud jsou vytvořeny a vloženy do dokumentu dodatečně, nebo pokud mají specifikovaný atribut async.
+  \item \textbf{\texttt{ready-to-be-parser-executed}} -- příznak používaný pouze pro skripty, které byly vloženy dodatečně některým z parserů dokumentu. Příznak je nastaven pokud dojde k úspěšnému načtení skriptu z externího zdroje.
+  \item \textbf{\texttt{script-type a script-charset}} -- jsou příznaky, které pouze reflektují atributy elementu \texttt{<script>}. Pokud nejsou atributy skriptu nastaveny, nebo jsou špatně nastaveny, poté obsahují opravené hodnoty těchto atributů, nebo jejich výchozí hodnoty.
+\end{enumerate}
+
+Nastavování části výše zmíněných příznaků by měl obsluhovat parser dokumentu během tvorby elementu \texttt{<script>}. Před spuštěním skriptu by se podle specifikace HTML 5 měla provést příprava skriptu. Příprava zahrnuje několik kroků, které nastaví příznaky např. \texttt{script-type} a \texttt{script-charset}, případně upraví příznaky nastavené parserem. 
+
+Příprava elementu \texttt{<script>} pro jeho budoucí spuštění je provedena, pokud skript nemá nastaven příznak \texttt{parser-inserted} a pokud nastane:
+
+\begin{enumerate}
+  \item vložení elementu požadovaného skriptu do dokumentu,
+  \item vložení nového uzlu nebo fragmentu dokumentu do již existujícího skriptu,
+  \item nastavení atributu src, který nebyl předtím nastaven.
+\end{enumerate}
+
+Prvotní fáze přípravy skriptu, jíž výsledkem je nastavení, zda je skript spustitelný, je znázorněna v příloze \ref{Annex.ScriptPreprocessing}. Během přípravy dochází také k zahájení načítání skriptů z externích zdrojů a umisťování jejich spuštění do front skriptů ke spuštění, aniž by docházelo k čekání, než jsou skripty kompletně načteny. 
+
+Pokud spouštíme skript existující přímo v dokumentu, je jeho vykonávání zahájeno ihned, a to i bez ohledu, zda předchozí skripty skončily své provádění. Všechny skripty, které mají uvedený externí zdroj, nejsou \texttt{parser-inserted} a byly již načteny jsou spouštěny také okamžitě a bez zbytečného čekání. Naopak problematika umísťování blokujících skriptů z důvodu čekání na zpracování stylů nebo \texttt{parser-inserted} skriptů do front skriptů ke spuštění je značně komplikovaná. Více o zpracovávání těchto skriptů si lze dočíst v samotné specifikaci HTML 5 [XY].
+
+\section{Renderovací stroj CSSBox}
+\label{Chapter.DependenciesAnalysis.CSSBox}
+
+CSSBox je projekt (X)HTML/CSS renderovacího stroje napsaného v čistém jazyce Java. Projekt klade velký důraz na poskytnutí informací o zpracovávané stránce.
+
+Renderovací stroj CSSBox očekává na svém vstupu model dokumentu - DOM . Dokument je v rámci stroje získáván pomocí parseru NekoHTML, ale může být získáván i jiným způsobem. Rozhraním pro všechny zdroje dokumentu je abstraktní třída \texttt{DOMSource}. Pro zpracování stylů dokumentu slouží třída \texttt{DOMAnalyzer}, která převede aktuální dokument na rozložení stránky. Výsledný model rozložení stránky se využívá pro zobrazení stránky, v knihovně je pro tento účel implementována komponenta \texttt{BrowserCanvas}.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.65}{
+      \includegraphics{fig/cssbox.pdf}
+    }
+    \caption{Hierarchie zobrazovacích komponent Box}
+    \label{Figure.BoxHierarchy}
+  \end{center}
+\end{figure}
+
+Komponenta \texttt{BrowserCanvas} vytváří strom vykreslených objektů třídy Box. Strom je vytvářen ze vstupního dokumentu a výstupu analyzátoru stylů. Ke každému vykreslovanému elementu dokumentu, je vytvořen třídou \texttt{BrowserCanvas} jeho odpovídající Box. Každý prvek HTML stránky se pojí se specializovanou třídou \texttt{Box}, tak je znázorněno na obrázku \ref{Figure.BoxHierarchy}. Typ boxu nemusí být určen pouze typem elementu dokumentu, ale i jeho styly. Pokud blokový prvek má nastaveno zobrazení na řádku, tak bude ve stromu reprezentován třídou \texttt{InlineBox} a nikoliv třídou \texttt{BlockBox}. 
+
+\section{Projekt SwingBox}
+\label{Chapter.DependenciesAnalysis.SwingBox}
+
+V rámci podprojektu SwingBox, který je součástí projektu CSSBox, byla vyvinuta komponenta \texttt{BrowserPane} [XY], která rozšiřuje funkčnost základního zobrazování dokumentu komponentou \texttt{BrowserCanvas}. Komponenta \texttt{BrowserPane} vychází ze třídy \texttt{JEditorPane}, ve které předefinovává výchozí zobrazování (X)HTML dokumentů. Pro zobrazování těchto dokumentů využívá \texttt{SwingBoxEditorKit}, který zařizuje veškerou logiku zobrazování.
+
+Komponenta \texttt{BrowserPane} umožňuje načítat dokumenty předáním jejich URL adresy, nebo předáním dokumentu v textové podobě, případně se zdrojem dokumentu nebo akceptuje zdroj dokumentu jako textový řetězec, případně vstupní stream s dokumentem. Na základě typu dokumentu, který má být zobrazen, dále volá pro čtení dokumentu odpovídající kit – v našem případě \texttt{SwingBoxEditorKit}. Kit zařizuje s použitím třídy \texttt{ContenetReader} načtení rozvržení stránky (viz kapitola \ref{Chapter.DependenciesAnalysis.CSSBox}) a jeho převod na reprezentaci dokumentu \texttt{SwingBoxDocument}, tak jak ji přijímá rozhraní komponenty \texttt{JEditorPane}. Třída \texttt{ContentReader} provádí převod rozvržení stránky na prvky dokumentu, tzn., převádí objekty třídy \texttt{Box} na objekty třídy \texttt{ElementSpec}. Veškeré načítání dokumentu ve formě DOM a jeho rozvržení třídou \texttt{DOMAnalyzer}, je prováděno ve třídě \texttt{CSSBoxAnalyzer}, na kterou je reference uvnitř třídy \texttt{ContentReader}.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.70}{
+      \includegraphics{fig/swingbox.pdf}
+    }
+    \caption{Diagram tříd komponenty BrowserPane}
+    \label{Figure.SwingBoxDesign}
+  \end{center}
+\end{figure}
+
+Prvky dokumentu \texttt{SwingBoxDocument}, které vytváří třída \texttt{ContentReader} jsou vykreslovány na zobrazovací plochu \texttt{BrowserPane} ve formě pohledů \texttt{View}. Vykreslování řídí automaticky komponenta \texttt{JEditorPane}, která zná referenci na továrnu pohledů \texttt{SwingBoxViewFactory}. Továrna pohledů je volána komponentou \texttt{JEditorPane} vždy při potřebě vykreslit požadovaný dokument. Továrna se využívá pro vytvoření pohledů pro každý prvek dokumentu \texttt{SwingBoxDocument}. Jelikož prvky dokumentu \texttt{ElementSpec} v sobě zapouzdřují informaci o tom, jaký box obalují, je možno vytvořit pohledy, které přesně korespondují s množinou boxů uvedených v kapitole \ref{Chapter.DependenciesAnalysis.CSSBox}.
 
 \chapter{Analýza podpory skriptování v~jazyce Javascript v~Javě}
 \label{Chapter.JavaScriptInJavaAnalysis}
@@ -147,7 +246,9 @@ Jakmile máme získanou instanci skriptovacího enginu, můžeme již vykonávat
 
 Nejdůležitější metodou rozhraní \texttt{ScriptEngine} je bezpochyby metoda \texttt{eval()}, která nám umožní spouštět skripty. Skript může být předán jako řetězec, nebo může být umístěn v souboru, streamu, či jiné zdroji. V závislosti na tom, zda daný skriptovací jazyk umožnuje vyhodnocování skriptu s výsledkem, tak je metodou \texttt{eval()} navrácen i výsledek skriptu.
 
-Myšlenkou Java API je mít co nejvíce společných rysů skriptovacích jazyků specifikovaných v rozhraní \texttt{ScriptEngine} a nemít zde žádný rys, který by některý skriptovací jazyk nemohl poskytnout. Proto všechny speciální vlastnosti konkrétních skriptovacích jazyků musí být implementovány v odlišných rozhraních. Tento návrh zajišťuje minimum změn těchto rozhraní v budoucnu. Nejdůležitější přídavné rozhraními rozpoznáváme:
+Myšlenkou Java API je mít co nejvíce společných rysů skriptovacích jazyků specifikovaných v rozhraní \texttt{ScriptEngine} a nemít zde žádný rys, který by některý skriptovací jazyk nemohl poskytnout. Proto všechny speciální vlastnosti konkrétních skriptovacích jazyků musí být implementovány v odlišných rozhraních. Tento návrh zajišťuje minimum změn těchto rozhraní v budoucnu. 
+
+\bigskip \noindent Nejdůležitější přídavné rozhraními rozpoznáváme:
 
 \begin{itemize}
   \item \textbf{\texttt{Invocable}} -- Rozhraní implementované enginy, které umožňují volat funkce/metody ve skriptu. Pro volání funkce používáme \texttt{invokeFunction()}, pro metody invokeMethod();
@@ -195,7 +296,7 @@ Návrh byl proveden s ohledem na již existující třídy projektu CSSBox a ost
 \bigskip \noindent Očekávanými závislostmi projektu budou knihovny a projekty:
 
 \begin{itemize}
-  \item \textbf{CSSBox} -- XHTML renderovací knihovna,
+  \item \textbf{CSSBox} -- (X)HTML renderovací knihovna,
   \item \textbf{CSSParser} -- parser kaskádových stylů,
   \item \textbf{SwingBox} -- prohlížeč webových stránek využívající CSSBox,
   \item \textbf{Rhino} -- skriptovací stroj JavaScriptu,
@@ -204,12 +305,12 @@ Návrh byl proveden s ohledem na již existující třídy projektu CSSBox a ost
   \item \textbf{Apache CXF} -- knihovna klient/server služeb.
 \end{itemize}
 
-Projekt bude vyvíjen na systému Windows 8 v prostředí Eclipse s JDK 7. Za cíl si klade poskytnout zpětnou podporu pro JDK 6.
+Projekt bude vyvíjen na systému Windows 8 v prostředí Eclipse s JDK 1.7.0\_25. Za cíl si projekt klade poskytnout zpětnou podporu pro JRE/JDK 6.
  
 \section{Provádění skriptů v HTML dokumentu}
 \label{Chapter.Design.ScriptsInHTML}
 
-Klientské skripty jsou v HTML dokumentu specifikovány elementy \texttt{<script>}. Jak bylo uvedené v kapitole XY, lze skripty vykovávat ihned po dokončení parsování značky se skriptem a nemusí se čekat, dokud je celý dokument načten. 
+Klientské skripty jsou v HTML dokumentu specifikovány elementy \texttt{<script>}. Jak bylo uvedené v kapitole \ref{Chapter.DependenciesAnalysis.ScriptsInHTML}, lze skripty vykovávat ihned po dokončení parsování značky se skriptem a nemusí se čekat, dokud je celý dokument načten. 
 
 V současné době není v rámci projektu CSSBox podpora pro manipulaci s dokumentem, který je právě čten. Aby bylo možné implementovat podporu pro skriptování přesně podle HTML specifikace, budeme muset implementovat vlastní parser dokumentu. Základní navrženou techniku implementace parseru dokumentu lze spatřit na obrázku \ref{Figure.EventDOMParserDesign}.
 
@@ -234,7 +335,7 @@ Aby byl návrh kompletní, byla navržena i třída \texttt{NodeEventDispatcher}
 \section{Podpora skriptování v projektu SwingBox}
 \label{Chapter.Design.ScriptsInSwingBox}
 
-Jak bylo popsáno v kapitole XY, projekt SwingBox umožňuje zobrazovat a procházet webové stránky. Pro přidání podpory skriptování do tohoto projektu (viz kapitola \ref{Chapter.Design.SwingBoxIntegration}) bude nutno definovat vlastní třídu \texttt{CSSBoxAnalyzer}. SwingBox používá tuto třídu pro parsování vstupního dokumentu a převod dokumentu na vykreslovaný \texttt{ElementBox}.   
+Jak bylo popsáno v kapitole \ref{Chapter.DependenciesAnalysis.SwingBox}, projekt SwingBox umožňuje zobrazovat a procházet webové stránky. Pro přidání podpory skriptování do tohoto projektu (viz kapitola \ref{Chapter.Design.SwingBoxIntegration}) bude nutno definovat vlastní třídu \texttt{CSSBoxAnalyzer}. SwingBox používá tuto třídu pro parsování vstupního dokumentu a převod dokumentu na vykreslovaný \texttt{ElementBox}.   
 
 \begin{figure}[H]
   \begin{center}
@@ -248,7 +349,7 @@ Jak bylo popsáno v kapitole XY, projekt SwingBox umožňuje zobrazovat a proch�
 
 Projekt \texttt{CSSBox} definuje pro zdroj dokumentu třídu \texttt{DocumentSource}, pro čtení dokumentu ze zdroje dokumentu třídu \texttt{DOMSource}. Abychom jsme se drželi zavedené praktiky, pro čtení dokumentu s událostmi v návrhu definujeme třídu \texttt{EventDOMSource}, která pouze vnitřně používá v kapitole \ref{Chapter.Design.ScriptsInHTML} popsaný \texttt{EventDOMParser}. 
 
-Největší roli při invokaci skriptu hraje v návrhu \texttt{ScriptAnalyzer}, který má u událostního parseru zaregistrovaný vlastní \texttt{EventNodeListener}. Při příchodu události o zpracování elementu \texttt{<script>}, přečte \texttt{ScriptAnalyzer} skript v jeho těle, případně načte skript z URL adresy uvedené v src atributu. Přečtený skript dále nechá vykonávat ve stroji \texttt{DocumentScriptEngine}. Stroj, který má být použit pro aktuální skript je získán z instance třídy \texttt{DocumentScriptManager} na základě atributu \texttt{type} elementu \texttt{<script>}, nebo z výchozího uvedeného stroje v \texttt{<meta>} značce (viz kapitola XY).
+Největší roli při invokaci skriptu hraje v návrhu \texttt{ScriptAnalyzer}, který má u událostního parseru zaregistrovaný vlastní \texttt{EventNodeListener}. Při příchodu události o zpracování elementu \texttt{<script>}, přečte \texttt{ScriptAnalyzer} skript v jeho těle, případně načte skript z URL adresy uvedené v src atributu. Přečtený skript dále nechá vykonávat ve stroji \texttt{DocumentScriptEngine}. Stroj, který má být použit pro aktuální skript je získán z instance třídy \texttt{DocumentScriptManager} na základě atributu \texttt{type} elementu \texttt{<script>}, nebo z výchozího uvedeného stroje v \texttt{<meta>} značce (viz kapitola \ref{Chapter.DependenciesAnalysis.ScriptsInHTML}).
 
 \begin{figure}[H]
   \begin{center}
@@ -281,7 +382,7 @@ K separaci nových implementovaných vlastností JavaScriptu byla navržena tech
 
 Neustálá instalace nové injekce rozšíření do skriptovacího stroje s příchodem nového rozšíření by se postupem času nejevila jako dobré řešení. Bylo by výhodné, aby s novým rozšířením došlo i automatické instalaci tohoto rozšíření do skriptovacího stroje, tzn., abychom dosáhli obrácení řízení -- IoC (Inversion of Control). Pro tento účel byla navržena třída \texttt{ScriptContextInjector}, která kromě metod samotné injekce bude provádět i registraci rozšíření v odpovídajícím skriptovacím stroji. K získání reference registru skriptovacích strojů \texttt{DocumentScriptManager} z objektů ScriptContextInjector se bude používat injektáž závislosti -- DI (Dependency Injection). Pro podporu DI je v plánu použít knihovnu Google Juice. Ve třídě \texttt{ScriptContextInjector} se v závislosti na typu skriptu vyhledá v registru skriptovacích strojů odpovídající stroj, ve kterém proběhne registrace samotné injekce rozšíření. 
 
-Pokud celý návrh injektování shrneme, tak automatická registrace injekce rozšíření bude probíhat v abstraktní třídě \texttt{ScriptContextInjector}. O tom, do jakého skriptovacího stroje by se měla injekce rozšíření vložit, bude informovat pro jazyk JavaScript např. třída \texttt{JavaScriptContextInjector}. Samotná injekce rozšíření bude ale implementována až specifickými injektory, jako jsou např. \texttt{DocumentInjector}, \texttt{HistoryInjector}, apod.
+Pokud celý návrh injektování shrneme, tak automatická registrace injekce rozšíření bude probíhat v abstraktní třídě \texttt{ScriptContextInjector}. O tom, do jakého skriptovacího stroje by se měla injekce rozšíření vložit, bude informovat pro jazyk JavaScript např. třída \texttt{JavaScriptContextInjector}. Samotná injekce rozšíření bude přitom implementována až specifickými injektory, jako jsou např. \texttt{DocumentInjector}, \texttt{HistoryInjector}, apod.
 
 \section{Implementace stroje JavaScriptu podle normy JSR223}
 \label{Chapter.Design.JavaScriptEngineJSR223}
@@ -314,7 +415,7 @@ Důvodem pro předefinování obalující továrny objektů, která je volána p
 
 Po vyřešení bezpečnosti budeme muset implementovat samotné propojení rozhraní Rhina a specifikace JSR 223. Stěžejní bude vyřešit data binding pro kontext \texttt{ScriptContext} definovaný v této specifikaci. Abychom měli přehled o všech proměnných, které se ve hlavním scopu nachází, budeme muset vytvořit třídu vlastního scopu. Scope (viz kapitola \ref{Chapter.JavaScriptInJavaAnalysis.Rhino.ScriptingWithRhino}) je klasický JavaScriptový objekt, ve kterém probíhá spouštění skriptu, tudíž implementuje rozhraní \texttt{Scriptable}. Rozhraní specifikuje metody pro zápis \texttt{put()} a získání atributů \texttt{get()} z objektu. Tyto metody jsou během vykonávání skriptu náležitě volány. Zpětného volání metod využijeme k navázání atributů do objektu \texttt{Bindings} a nebo získání atributů z objektu \texttt{Bindings}. 
 
-Výše popsané praktiky jsou dostatečné pro vytvoření jednoduchého stroje, který vychází ze specifikace JSR 223.  Po zavolání vykonání skriptu metodou eval(), bude pracovat stroj tak, jak je popsáno v následujících krocích:  
+Výše popsané praktiky jsou dostatečné pro vytvoření jednoduchého stroje, který vychází ze specifikace JSR 223.  Po zavolání vykonání skriptu metodou \texttt{eval()}, bude pracovat stroj tak, jak je popsáno v následujících krocích:  
 
 \begin{enumerate}
   \item	Vytvoří se nový kontext zavoláním \texttt{Context.enter()}, v rámci něhož dojde i k zavolání metody \texttt{makeContext()} třídy \texttt{JavaShutterContextFactory};
@@ -328,7 +429,7 @@ Výše popsané praktiky jsou dostatečné pro vytvoření jednoduchého stroje,
 
 Všechny potřebné náležitosti pro zařazení podpory JavaScriptu do projektu CSSBox byly již navrženy. Návrh proběhl konkrétně pro podprojekt SwingBox, který rozšiřuje výchozí  CSSBox o reakci prvků stránky na podněty příchozí od uživatele, tzn. zejména o možnost procházení webového obsahu. 
 
-Aby bylo možné zakomponovat JavaScript do projektu SwingBox, bude nutno provést registraci vlastní CSSBoxAnalyzer třídy navržené v kapitole \ref{Chapter.Design.ScriptsInSwingBox}. Kompletní konfigurace, kterou bude nutno provést pro přidání podpory JavaScriptu je znázorněná na obrázku \ref{Figure.SwingBoxIntegrationDesign}.
+Aby bylo možné zakomponovat JavaScript do projektu SwingBox, bude nutno provést registraci vlastní \texttt{CSSBoxAnalyzer} třídy navržené v kapitole \ref{Chapter.Design.ScriptsInSwingBox}. Kompletní konfigurace, kterou bude nutno provést pro přidání podpory JavaScriptu je znázorněná na obrázku \ref{Figure.SwingBoxIntegrationDesign}.
 
 \begin{figure}[H]
   \begin{center}
@@ -340,7 +441,7 @@ Aby bylo možné zakomponovat JavaScript do projektu SwingBox, bude nutno prové
   \end{center}
 \end{figure}
 
-Z uvedeného diagramu je patrné, že pouhá jedna registrace vlastního vyhodnocovače dokumentu ScriptAnalyzer bude pro přidání podpory JavaScriptu dostačující. Projekt SwingBox konkrétně definuje vlastní zobrazovací plochu pro webové stránky \texttt{BrowserPane}. Třída pro veškeré čtení nového dokumentu webové stránky využívá \texttt{SwingBoxEditrKit} a následně \texttt{ContentReader}, který je přímo spjat s aktuálně zaregistrovaným CSSBox vyhodnocovačem.
+Z uvedeného diagramu je patrné, že pouhá jedna registrace vlastního vyhodnocovače dokumentu \texttt{ScriptAnalyzer} bude pro přidání podpory JavaScriptu dostačující. Projekt SwingBox zejména implementuje vlastní zobrazovací plochu pro webové stránky \texttt{BrowserPane}. Zobrazovací plochu využijeme ve finální čísti projektu pro tvorbu jednoduchého webového prohlížeče a znázornění funkčnosti skriptování v HTML dokumentech. Třída pro zobrazování obsahu HTML stránky využívá pro veškeré čtení nového dokumentu webové stránky třídu \texttt{SwingBoxEditrKit}, která následně volá \texttt{ContentReader}, který je přímo spjat s aktuálně zaregistrovaným \texttt{CSSBoxAnalyzer}. Definicí vlastní třídy \texttt{ScriptAnalyzer} získáme plnou kontrolu nad zpracovávaným dokumentem a možnost provádění skriptů v HTML dokumentu. 
 
 \chapter{Závěr}
 \label{Chapter.Final}
