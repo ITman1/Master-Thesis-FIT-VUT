@@ -10,8 +10,8 @@
 %============================================================================
 % Šablonu upravil: Ing. Jaroslav Dytrych, xdytry00@stud.fit.vutbr.cz
 %============================================================================
-\documentclass[cover]{cls/fitthesis} % odevzdani do wisu - odkazy jsou barevné
-%\documentclass[cover,print]{fitthesis} % pro tisk - odkazy jsou černé
+%\documentclass[cover]{cls/fitthesis} % odevzdani do wisu - odkazy jsou barevné
+\documentclass[cover,print]{cls/fitthesis} % pro tisk - odkazy jsou černé
 %\documentclass[english,print]{fitthesis} % pro tisk - odkazy jsou černé
 %      \documentclass[english]{fitthesis}
 % * Je-li prace psana v anglickem jazyce, je zapotrebi u tridy pouzit 
@@ -97,7 +97,7 @@
   %Prace
   project=SP,               %typ prace BP
   year=2014,                %rok
-  date=\today,              %datum odevzdani
+  date=14. ledna 2014, %\today,              %datum odevzdani
   %Nazev prace
   title.cs=Podpora JavaScriptu v zobrazovacím\\ stroji HTML,  %nazev prace v
   % cestine
@@ -127,22 +127,21 @@
 }
 
 %Abstrakt (cesky, anglicky)
-\abstract[cs]{Tato diplomová práce se věnuje ...}
-\abstract[en]{This Master’s thesis ...}
+\abstract[cs]{Tato práce vznikla z důvodu návrhu rozšíření podpory skriptování v jazyce JavaScript pro experimentální zobrazovací stroj CSSBox. V teoretické části práce popisuje architekturu zobrazovacího stroje a uvádí do problematiky skriptování v HTML dokumentech podle doporučené specifikace HTML 5. Práce se zabývá důkladnou analýzou existujících skriptovacích strojů a jejich rozhraní, kterých by bylo možné využít pro implementaci rozšíření. V~závislosti na teoretických znalostech se práce zaměřuje na skriptovací stroj Rhino a představuje abstraktní návrh jeho zakomponování do projektu CSSBox.}
+\abstract[en]{This thesis was written to design the extension of scripting support in JavaScript language for an experimental rendering engine CSSBox. In the theoretical section the thesis describes the architecture of the rendering engine and introduces problems of the scripting in HTML documents according to the recommended HTML 5 specification. This thesis deals with thorough analysis of existing scripting engines and their interfaces, which could be used for the extension implementation. Depending on the knowledge gained from the previous parts this thesis focuses only on the scripting engine Rhino and introduces an abstract design of its integration into the CSSBox project.}
 
 %Klicova slova (cesky, anglicky)
 \keywords[cs]{JavaSctipt, stroj, Java, HTML, CSSBox, Rhino, webový prohlížeč, skriptovací Java API}
 \keywords[en]{JavaSctipt, engine, Java, HTML, CSSBox, Rhino, web browser, Java Scripting API}
 
 %Prohlaseni
-\declaration{Prohlašuji, že jsem tuto bakalářskou práci vypracoval samostatně
-pod vedením pana \linebreak[4]Ing. Lukáše Maršíka. Uvedl jsem všechny literární
-prameny a publikace, ze kterých jsem čerpal.}
+\declaration{Prohlašuji, že jsem tuto práci vypracoval samostatně a uvedl
+všechny literární prameny a publikace, ze kterých jsem čerpal, pod vedením pana Ing. Radka Burgeta, Ph.D.}
 
 %Podekovani (nepovinne)
-\acknowledgment{Na tomto místě bych rád poděkoval panu Ing. Lukáši Maršíkovi za
-vedení mé práce, věcné připomínky a poskytnutí mobilních zařízení k otestování
-finální aplikace.}
+%\acknowledgment{Na tomto místě bych rád poděkoval panu Ing. Lukáši Maršíkovi za
+%vedení mé práce, věcné připomínky a poskytnutí mobilních zařízení k otestování
+%finální aplikace.}
 
 \begin{document}
   % Vysazeni titulnich stran
