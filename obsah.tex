@@ -378,7 +378,9 @@ Pokud je skript vykováván poprvé v rámci uvedeného dokumentu, tak dojde u t
 \section{Injektování objektů do hlavního scopu}
 \label{Chapter.Design.GlobalScopeInjections}
 
-Během implementace podpory klientského JavaScriptu do projektu CSSBox se předpokládá vytvoření velké množství tříd, které budou implementovat jednotlivé aspekty JavaScriptu pro prohlížeč. Předpokládá se, že vyvíjené třídy budou vyvíjeny postupně a iterativně přidávat jednotlivé funkčnosti. Bylo by výhodné oddělit jednotlivé nové funkce a odstranit potřebu přímého zásahu do třídy \texttt{DocumentScriptEngine} s příchodem nového rozšíření. 
+Během implementace podpory klientského JavaScriptu do projektu CSSBox se
+předpokládá vytvoření velkého množství tříd, které budou implementovat
+jednotlivé aspekty JavaScriptu pro prohlížeč. Předpokládá se, že vyvíjené třídy budou vyvíjeny postupně a iterativně přidávat jednotlivé funkčnosti. Bylo by výhodné oddělit jednotlivé nové funkce a odstranit potřebu přímého zásahu do třídy \texttt{DocumentScriptEngine} s příchodem nového rozšíření.
 
 \begin{figure}[H]
   \begin{center}
@@ -454,6 +456,315 @@ Aby bylo možné zakomponovat JavaScript do projektu SwingBox, bude nutno prové
 \end{figure}
 
 Z uvedeného diagramu je patrné, že pouhá jedna registrace vlastního vyhodnocovače dokumentu \texttt{ScriptAnalyzer} bude pro přidání podpory JavaScriptu dostačující. Projekt SwingBox zejména implementuje vlastní zobrazovací plochu pro webové stránky \texttt{BrowserPane}. Zobrazovací plochu využijeme ve finální čísti projektu pro tvorbu jednoduchého webového prohlížeče a znázornění funkčnosti skriptování v HTML dokumentech. Třída pro zobrazování obsahu HTML stránky využívá pro veškeré čtení nového dokumentu webové stránky třídu \texttt{SwingBoxEditrKit}, která následně volá \texttt{ContentReader}, jenž je přímo spjat s~aktuálně zaregistrovaným \texttt{CSSBoxAnalyzer}. Definicí vlastní třídy \texttt{ScriptAnalyzer} získáme plnou kontrolu nad zpracovávaným dokumentem a možnost provádění skriptů v HTML dokumentu. 
+
+\chapter{Implementace}
+\label{Chapter.Implementation}
+
+Následující kapitola pojednává o realizaci rozšíření projektu CSSBox o možnost provádění skriptů v (X)HTML dokumentech (kapitola \ref{Chapter.Design}). Popis implementace je zaměřen na uvedení nejzákladnějších tříd, metod či funkcí, které implementují nejdůležitější části výsledné aplikace, přičemž podrobný popis lze nalézt v programových dokumentacích na přiloženém DVD (příloha \ref{Annex.dvdContent}).
+
+Cílem implementace bylo přidat podporu pro skriptování v (X)HTML dokumentech a zahrnout podmnožinu aktuální specifikace klientského JavaScriptu. Aby bylo možné implementovat klientské skriptovací enginy, bylo zapotřebí vytvořit jednoduché jádro prohlížeče implementující základní aspekty procházení stránek (kapitola XY). Pro snadné přidávání nových klientských skriptovacích enginů byla vytvořena abstraktní architektura pro skriptování (kapitola XY), ze které vychází i JavaScriptový klientský engine (kapitola XY).
+
+Implementace této práce se nachází v podbalících hlavního balíku projektu ScriptBox pojmenovaném \texttt{org.fit.cssbox.scriptbox}.  Názvy tříd, které tyto podbalíky obsahují, nebudou v této kapitole z důvodu zjednodušení a přehlednosti plně kvalifikovány. Stručné popisy jednotlivých balíků jsou v příloze XY.
+
+\section{Jádro prohlížeče a jeho rozhraní}
+\label{Chapter.Implementation.BrowsingCore}
+
+Jednotlivé implementace klientských skriptovacích enginů využívají různá rozhraní pro komunikaci s prohlížečem a dokumentem, ve kterém jsou jejich skripty vloženy. Těmito rozhraními myslíme např. rozhraní pro objekty \texttt{Window}, \texttt{Location}, \texttt{History}, \texttt{Document} aj. Aby bylo možné poskytnout implementaci pro tyto zmíněné rozhraní, bylo nutné implementovat jednoduché jádro pro procházení HTML stránek.
+
+V této kapitole se budeme zabývat obecným jádrem pro procházení HTML stránek. Jelikož současná implementace probíhala primárně pro JavaScriptový engine, popíšeme také korespondující rozhraní, která jsou viditelná v klientském JavaScriptu. Jednotlivá implementovaná rozhraní se snaží v maximální možné míře využívat fundamentální koncept jádra prohlížeče. Samotné jádro je s těmito rozhraními provázáno jen minimálně.
+
+V kapitole XY nejprve definujeme základní pohled na prohlížeč jako na prohlížecí jednotky kontextu. Kapitola XY pojednává o událostní smyčce, která zapouzdřuje všechny úlohy prohlížeče. Navigace dokumentů a jeho navracení procházením historie je popsáno v kapitolách XY a XY. Následující kapitoly dokončují výklad a přidávají další rozhraní, která jsou viditelná z klientského JavaScriptu. 
+
+\section{Základní koncepty prohlížeče}
+\label{Chapter.Implementation.BasicConcepts}
+
+Prohlížečem budeme od této chvíle rozumět uživatelského agenta, angl. user agent, ať již bude, nebo nebude sloužit k prohlížení webu. Tento pojem bude reprezentovat instanci celého funkčního jádra, které umožňuje navigování HTML dokumentů a jiných zdrojů.
+
+V implementaci představuje uživatelského agenta třída \texttt{UserAgent}, která shromažďuje nastavení a umožňuje jednotný přístup ke sdíleným datům. Hlavní funkcí uživatelského agenta, je umožnění otevírání a zavírání procházecích jednotek \texttt{BrowsingUnit}, neboli jednotek, které zapouzdřují kontext na nejvyšší úrovni (okno, prohlížecí panel) pro zobrazování dokumentu. 
+
+Procházecí jednotky (\ref{Figure.UserAgentAndBrowsingUnit}) v sobě obsahují hlavní procházecí kontext \texttt{BrowsingContext}, který je reprezentován na této úrovni vždy třídou \texttt{WindowBrowsingContext}. Uvnitř jednotek je dále uchovávána reference na událostní smyčku (kapitola XY), historii procházení (kapitola XY) a zásobník právě prováděných skriptů (kapitola XY), které jsou společné pro všechny obsažené procházecí kontexty. Všechny výše zmíněné objekty jsou vytvářeny v rámci konstrukce procházecí jednotky.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.60}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-browser-UserAgent.pdf}
+    }
+    \caption{Diagram tříd procházecí jednotky vytvářené uživatelským agentem}
+    \label{Figure.UserAgentAndBrowsingUnit}
+  \end{center}
+\end{figure}
+
+Výše jsme zmínili, že procházecí jednotka vytváří procházecí kontexty. Tímto kontextem rozumíme prostředí, ve kterém jsou prezentovány dokumenty uživateli. Během navigování stránek dochází ke změně dokumentů, nikoliv však procházecího kontextu, který je po celou životnost např. okna neměnný. Procházecí kontexty poskytují jakýsi obal nad navigovanými dokumenty a informují o právě aktivním dokumentu.
+
+Procházecí kontexty mohou být různě hierarchicky stromově zanořeny. Kořen stromu je umístěn vždy v procházecí jednotce, pokud zanedbáme pomocné procházecí kontexty \texttt{AuxiliaryBrowsingContext}. Zanoření vzniká zejména díky procházecím kontextům vytvořených přes \texttt{<iframe>} značky, které mohou obsahovat zanořené dokumenty.
+
+Pokud je uživatelským agentem agent, který obsahuje uživatelské prostředí, tak má procházecí kontext velmi blízké provázání právě na toto uživatelské prostředí, ve kterém je zobrazován dokument. Proto byl kontext zvolen i pro definici rozhraní umožňujícího základní přístup k uživatelskému rozhraní z klientských skriptů. V kontextu se nachází rozhraní například pro navigační pole, statusový panel, posuvníky aj. Podle HTML 5 jsou tato uživatelská rozhraní viditelná skrze BarProp rozhraní . Abychom odstínili vytváření nových „schopnějších“ procházecích kontextů při každé potřebě na změnu uživatelského rozhraní, je možné tato rozhraní nastavovat v obecných a již implementovaných procházecích kontextech pomocí odpovídajících setterů. Jelikož základní uživatelský agent \texttt{UserAgent} žádné uživatelské prostředí nedefinuje, základní implementace procházecích kontextů neposkytuje ani kompletní implementaci BarProp rozhraní. Implementace je provedena pouze formou nekompletních metod, známých angl. pod pojmem stubs, který budeme od této chvíle v textu dále používat.
+
+Abstraktní třídu pro všechny procházecí kontexty představuje třída \texttt{BrowsingContext} (obrázek \ref{Figure.BrowsingContext}), která obsahuje metody pro vytváření a hierarchickou strukturalizaci procházecích kontextů a ostatní funkcionalitu společnou pro všechny specifické kontexty. Třída vlastní referenci na historii sezení (kapitola XY), navigační kontroler (kapitola XY) a objekt \texttt{WindowProxy} (kapitola XY).
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.70}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-browser-BrowsingContext.pdf}
+    }
+    \caption{Diagram tříd procházecího kontextu}
+    \label{Figure.BrowsingContext}
+  \end{center}
+\end{figure}
+
+\noindent Nejdůležitějšími atributy třídy \texttt{BrowsingContext} jsou:
+
+\begin{itemize}
+  \item \textbf{\texttt{creatorDocument}} -- reference na dokument, který vytvořil procházecí kontext;
+  \item \textbf{\texttt{container}} -- element, v rámci něhož byl vytvořen procházecí kontext;
+  \item \textbf{\texttt{name}} -- jméno procházecího kontextu.
+\end{itemize}
+
+Všechny specifické implementované procházecí kontexty jsou znázorněny na obrázku \ref{Figure.BrowsingContextsHierarchy}.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.50}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-browser-ContextsHierarchy.pdf}
+    }
+    \caption{Diagram tříd hierarchie procházecích kontextů}
+    \label{Figure.BrowsingContextsHierarchy}
+  \end{center}
+\end{figure}
+
+Z třídy kontextu dědí další abstraktní třída \texttt{IFrameContainerBrowsingContext}, která je určena pro všechny procházecí kontexty, jenž mohou vytvářet zanořené procházecí přes značky \texttt{<iframe>}. Další třídy \texttt{WindowBrowsingContext} a \texttt{IFrameBrowsingContext} reprezentují již konkrétní procházecí kontexty. Třída \texttt{WindowBrowsingContext} představuje kontext na nejvyšší úrovni – tedy na úrovni okna. Druhá třída \texttt{IFrameBrowsingContext} pak plní funkci vnořeného kontextu vytvářeného uvnitř \texttt{IFrameContainerBrowsingContext} přes značku \texttt{<iframe>}. Pomocný kontext \texttt{AuxiliaryBrowsingContext} je dalším kontextem na nejvyšší s tím rozdílem, že není vytvářen procházecí jednotkou jako u kontextu okna. Kontext je naopak vytvářen libovolným specifickým kontextem, který potřebuje otevřít nové okno, vznikajícím např. navigací cíle \_blank.
+
+V průběhu implementace se naskytla potřeba pro získávání notifikací z procházecích kontextů při výskytu určité události, a tak byl implementován jednoduchý observer mechanismus nad procházecími kontexty. Procházecí kontext \texttt{BrowsingContext} může vyvolat události:
+
+\begin{itemize}
+  \item \textbf{\texttt{INSERTED}} -- po vložení nového zanořeného kontextu do daného kontextu;
+  \item \textbf{\texttt{REMOVED}} -- při smazání vnořeného kontext z daného kontextu;
+  \item \textbf{\texttt{DESTROYED}} -- pokud je daný kontext zrušen. 
+\end{itemize}
+
+\section{Událostní smyčka}
+\label{Chapter.Implementation.EventLoop}
+
+Abychom mohli pokračovat ve výkladu, je zapotřebí se seznámit s událostní smyčkou, která obsluhuje úlohy uživatelského agenta. Událostní smyčka umožňuje úlohy dle potřeby mazat, různě filtrovat nebo je oddělit podle jejich typu – zdroje úlohy. Smyčka dále sjednocuje přístup k API uživatelského agenta v jednom vlákně, aby nedocházelo k race condition a ulehčilo se řešení výlučných sekcí. Asynchronní žádosti na API, jako je např. navigování stránek nebo procházení historie, v určitém čase vždy zajistí vložení nové úlohy do událostní smyčky.
+
+V implementaci je událostní smyčka reprezentována třídou EventLoop a je vytvářena procházecí jednotkou v rámci její konstrukce. Zjednodušený diagram tříd znázorňující funkci událostní smyčky lze vidět na následujícím obrázku \ref{Figure.EventLoop}. 
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.78}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-events-EventLoop.pdf}
+    }
+    \caption{Diagram tříd znázorňující událostní smyčku}
+    \label{Figure.EventLoop}
+  \end{center}
+\end{figure}
+
+Nejdůležitější metoda smyčky je queueTask(), která vkládá nové úlohy Task do front úloh TaskQueues v závislosti na tom, o jakou frontu se jedná. Rozlišení front je docíleno zdrojem úlohy TaskSource. Vkládání úloh a její vybírání zprostředkovává plánovač TaskQueuesScheduler.
+ 
+Kromě operace na vkládání obsahuje událostní smyčka různé variace metod na filtraci a mazání úloh. Tyto metody jsou nazvány s prefixy filter a remove. Při konstrukci smyčky se vytváří nové vlákno, které čeká, dokud není naplánována nová úloha plánovačem úloh. Obecně platí, že událostní smyčka je vláknově bezpečná. Pokud si přejeme pozdržet vlákno, které vložilo úlohu do front úloh, lze toho docílit metodou queueTaskAndWait(), která interně volá metodu join() nad danou úlohou. Pokud bychom použili metodu queueTaskAndWait() přímo z vykonávacího vlákna smyčky, došlo by k jeho zablokování. Proto je zapotřebí využít jiných technik, např. zavolání metody spin() poté, co je vložena nová úloha.
+
+Metoda spin() a její variace s prefixem spin zajišťují rotaci událostní smyčky. Rotací rozumíme přerušení aktuálně prováděné úlohy a její opětovné vložení, přičemž vložení může být různě zpožděno. Základní metoda na rotaci spin() vkládá úlohu ihned do front úloh, zatímco metoda spinForCondition() čeká na splnění určité podmínky. Podmínky jsou implementovány rozhraním Runnable, jehož metoda run() je při žádosti na odložené vložení zavolána ve speciálním vlákně. Po skončení vlákna dojde teprve ke vložení úlohy do front úloh. Přerušení právě probíhající úlohy je zajištěno vyhozením výjimky TaskAbortedException, která pokud není nikde odchycena, je propagována až do událostní smyčky. Smyčka po zachycení dané výjimky začne považovat právě vykonávající úlohu jako za dokončenou. Úloha, která je vložena rotací smyčky do front úloh, je kopií staré úlohy ovšem s novým vykonávacím tělem, jež je předáváno jako actionAfter parametr do metod pro rotace. Využití rotací událostní smyčky lze využít např. během posouvání na fragment stránky, přičemž stránka není ještě stále kompletní. V tomto případě lze rotací zapříčinit čekání na daný fragment a poté, co je vložen do dokumentu, vložit úlohu, která zajistí posunutí na daný fragment.
+
+Jak víme, každá úloha musí rozšiřovat abstraktní třídu Task. Úloha musí být dále také asociována s dokumentem a musí nést zdroj, podle kterého se rozhoduje, do jaké fronty se má úloha zařadit. Položka dokumentu v úloze velmi často slouží k určení cíle úlohy, čehož se využívá při odstraňování úloh pro dokumenty, které vystoupily z procházecího kontextu, např. pokud došlo k navigaci na jiný dokument. 
+
+Fronty úloh TaskQueues jsou rozšířením hašovací tabulky, která mapuje zdroje úloh na fronty přiřazené tomuto zdroji. Třída TaskQueues přidává nové metody pro intuitivnější práci s frontami úloh – metody pro vyhledávání úloh ve frontách, jejich filtraci a odstraňování.
+
+Cílem plánovače úloh TaskQueuesScheduler bylo zajistit oddělené plánování úloh od událostní smyčky a umožnit v budoucnu různé implementace plánování. Tak jako událostní smyčka, má plánovač vlastní vlákno pro plánování. Přes své rozhraní přijímá nové úlohy, které vkládá do front úloh. Ve vlastním vykonávacím vlákně tyto úlohy podle plánovacího algoritmu vybírá a vkládá je do fronty naplánovaných úloh. V současnosti jediná implementace plánovače úloh RoundRobinScheduler zajišťuje rotační odebírání úloh z front úloh, přičemž pokud je některý zdroj úlohy neaktivní a jeho fronta je prázdná, je po určitém časovém kvantu vnitřním časovačem odstraněn z pole pro rotaci.
+
+\section{Stahování zdrojů}
+\label{Chapter.Implementation.DownloadingResources}
+
+Předtím než přejdeme k popisu dokumentu a jeho parsování, popíšeme v následující kapitole, jak je řešeno jeho stažení. Stahování bylo řešeno obecně pro různé typy komunikačních protokolů a pro různé typy formátů obsahu. Jelikož lze stahovat různé druhy obsahu, nikoliv pouze dokumenty, budeme se v této kapitole bavit pouze o zdrojích. Pokud není obsahem zdroje přímo dokument, jsou obsahy často zpracovávány a do dokumentu dodatečně vkládány. Zpracovávání obsahu zdrojů popíšeme blíže v následující kapitole XY.
+
+Základní třídou pro všechny zdroje je v implementaci třída Resource (viz obrázek XY). Třída poskytuje vstupní datový tok obsahu zdroje, nese základní informace o tom, z jaké adresy byl zdroj získán a typu jeho obsahu. Informuje, zda zdroj je dostupný nebo jestli by mělo být provedeno přesměrování. Pokud je zdroj získáván pomocí URLConnection rozhraní, existuje v implementaci bližší reprezentace pro tyto zdroje – abstraktní třída URLConnectionResource. Byly implementovány celkem 4 druhy konkrétních zdrojů: HttpResource, HttpsResource, FileResource a JavaScriptResource. V současné době lze tedy stahovat zdroje z URL adres, jež nesou protokoly file, http, https a javascript.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.65}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-resource-Resource.pdf}
+    }
+    \caption{Diagram tříd znázorňující abstraktní třídu pro všechny zdroje}
+    \label{Figure.Resource}
+  \end{center}
+\end{figure}
+
+Pokud hovoříme o stažení zdroje, máme na mysli navázání připojení a podle daného protokolu komunikaci se serverem. Komunikaci se serverem a vytváření konkrétního zdroje zajišťují třídy ovladačů – třídy rozšiřující abstraktní třídu pro ovladače FetchHandler. Každý konkrétní ovladač vytváří jeden z výše zmíněných specifických zdrojů (viz obrázek XY). Pro stažení zdroje je určena metoda fetch(), která vnitřně volá chráněnou metodu fetchImpl(). Pokud byl ovladač vytvořen v synchronním módu, pak tato operace způsobí blokování do doby stažení zdroje. Pro získání staženého zdroje slouží metoda getResource(), která také volá chráněnou metodu, tentokrát getResourceImpl(). 
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.80}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-resource-FetchRegistry.pdf}
+    }
+    \caption{Diagram tříd znázorňující registr ovladačů}
+    \label{Figure.FetchRegistry}
+  \end{center}
+\end{figure}
+
+V praxi při získávání zdroje máme k dispozici pouze jeho URL. Nevíme předem, jaký ovladač pro jeho stažení použít. Přesto bychom chtěli mít jednotné rozhraní, které by převzalo předanou URL a vyhodnotilo, zda je zdroj stažitelný, popř. ho i stáhlo. Za tímto účelem vznikl registr všech ovladačů FetchRegistry, který shromažďuje všechny podporované ovladače a umožňuje nad nimi vyhledávat podle protokolu předané URL. Registr registruje třídy ovladačů a vytváří na ně asociace v závislosti na tom, jaké protokoly podporují. Podporované protokoly jsou získávány ze speciální anotace třídy FetchHandlerPreamble, která musí být přítomna u každé třídy registrovaného ovladače.
+
+\section{Zpracovávání obsahu zdrojů}
+\label{Chapter.Implementation.ContentHandling}
+
+V předešlé kapitole XY bylo popsáno, jak lze získávat zdroje. Zdroje musí být ovšem dále zpracovávány v závislosti na typu obsahu, který představují, převedeny na dokument a až poté mohou být zobrazeny. Pro zpracovávání byla zvolena podobná návrhová myšlenka jako pro získávání zdrojů. Byl implementován registr továrniček ovladačů ContentHandlerRegistry, který spravuje továrničky ovladačů pro různé typy obsahů a získává instance ovladačů v závislosti na požadovaném MIME typu obsahu. 
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.80}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-resource-ContentHandlerRegistry.pdf}
+    }
+    \caption{Diagram tříd znázorňující registr továrniček ovladačů}
+    \label{Figure.ContentHandlerRegistry}
+  \end{center}
+\end{figure}
+
+Třída ovladače, která zajišťuje zpracovávání daného typu obsahu, musí být konkrétní třídou nad abstraktní třídou ContentHandler. Pro zpracování obsahu se volá metoda perform (), která přijímá zdroj ke zpracování. V současné době je implementován pouze jeden ovladač – na zpracovávání HTML dokumentů HtmlDocumentHandler, který vkládá do událostní smyčky úlohu, jež zajišťuje tvorbu dokumentu, přidání nového dokumentu do historie, její aktualizaci a v poslední řadě zahájení parsování dokumentu. V implementaci jsou také připraveny návrhy tříd ovladačů na zpracovávání obrázků, textových souborů, XML dokumentů, médií, aj.
+
+Z důvodu potřeby podobné funkčnosti v jiné části implementace – výběru skriptovacího enginu v závislosti na MIME typu skriptu (viz kap. XY) byly implementovány generické třídy pro správu továrniček objektů jakéhokoliv typu. Abstraktní továrnička, která obsluhuje získávání obsahů podporovaného MIME typu, je v implementaci nazvána MimeContentFactoryBase. Každá konkrétní továrnička redefinuje metodu pro vytváření obsahu getContent() a metody pro zjištění podporovaných MIME typů. Rozlišujeme dva druhy MIME typů:
+
+\begin{itemize}
+  \item \textbf{explicitně podporované} -- typy, které předem můžeme určit, a o kterých víme, že továrnička bude tyto typy podporovat, tzn. známe celou jejich podobu, např. text/html; Pro zjištění těchto typů slouží metoda getExplicitlySupportedMimeTypes();
+  \item \textbf{implicitně podporované} -- typy, kde rozhodne o jejich platnosti až jejich formát, částečná shoda, např. pouze prefix text/; Pro test, zda se jedná o implicitně podporovaný typ je vyčleněná metoda isImplicitlySupported().
+\end{itemize}
+
+\section{Navigace mezi dokumenty}
+\label{Chapter.Implementation.DocumentNavigation}
+
+V kapitole XY byla popsána metodika, jak se získávají zdroje, jež lze využít nejenom pro stahování dokumentů, ale i pro získávání souborů kaskádových stylů nebo externích skriptů během načítání stránky. Předchozí XY kapitola se zabývala výhradně zpracováním obsahu zdroje, vytvářením dokumentu a jeho zobrazením. Celý proces, který zahrnuje stažení zdroje a následné zobrazení dokumentu, přičemž je změněn předchozí aktivní dokument, lze nazvat navigací mezi dokumenty.
+
+Požadavky na navigování nového dokumentu mohou přicházet asynchronně. V implementaci je vstupním bodem pro příchod nových požadavků navigační kontroler – třída NavigationController. Kontroler všechny požadavky registruje a pokouší se je obsloužit. Obsluha požadavků je delegována třídě požadavku NavigationAttempt, která o stavu zpracování požadavku informuje svůj kontroler pomocí callback metod rozhraní NavigationAttemptCallback. Callback metody informují o následujících stavech:
+
+\begin{itemize}
+  \item \textbf{vyzrání} -- navigovaný dokument byl přidán do historie, ale stále není kompletní;
+  \item \textbf{zrušení} -- navigace byla zrušena uživatelem nebo kvůli nějaké chybě;
+  \item \textbf{dokončení} -- navigace byla kompletně provedena; 
+  \item \textbf{výběru cílového procházecího kontextu} -- byl zvolen procházecí kontext, ve kterém bude navigace prováděna.
+\end{itemize}
+
+Navigace přechází do jednotlivých stavů zavoláním korespondujících metod navigace: complete(), cancel() nebo mature(). V závislosti na tom, jaká callback metoda byla navigačním požadavkem zavolána, je v navigačním kontroleru provedena k tomu odpovídající akce. Při výběru cílového kontextu je požadavek zaregistrován v kontroleru, naopak při zrušení nebo dokončení požadavku je požadavek zcela odregistrován. Jelikož bylo žádoucí informovat o stavech provádění požadavků uvnitř navigačního kontroleru i vnější okolí, byl vytvořen opět jednoduchý observer nad navigačním kontrolerem. Události, které mohou být vyvolány, kopírují metody callback volání z navigačního požadavku. 
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-navigation-NavigationController.pdf}
+    }
+    \caption{Diagram tříd znázorňující navigační kontroler}
+    \label{Figure.NavigationController}
+  \end{center}
+\end{figure}
+
+Navigační kontroler vytváří celkem dva typy navigací. Prvním typem navigace je navigace NewNavigationAttempt, která vzniká po zavolání metody navigate() a která přidává do historie nový navigovaný dokument. Druhý typ navigace UpdateNavigationAttempt vznikající zavoláním metody update() přepíše dokument předaného záznamu historie, který je tímto aktualizován.
+
+\noindent K vytvoření navigačního požadavku je zapotřebí nastavit:  
+
+\begin{itemize}
+  \item \textbf{\texttt{navigationController}} -- navigační kontroler, který vlastní tento požadavek;
+  \item \textbf{\texttt{sourceBrowsingContext}} -- vybraný cílový procházecí kontext, kde bude navigován nový zdroj;
+  \item \textbf{\texttt{url}} -- pokud je daný kontext zrušen. 
+  \item \textbf{\texttt{exceptionEnabled}} -- nastaveno pokud se mají generovat DOM výjimky;
+  \item \textbf{\texttt{explicitSelfNavigationOverride}} -- když je nastaveno, bude cílovým procházecím kontextem zvolen procházecí kontext navigačního kontroleru a nebude se vyhodnocovat efektivní procházecí kontext;
+  \item \textbf{\texttt{replacementEnabled}} -- nastaveno pokud žádáme, aby byl přepsán právě aktivní záznam historie a smazány všechny jeho následující záznamy.
+\end{itemize}
+
+Pro vykonání a spuštění navigačního algoritmu je vyčleněná metoda perform(). Algoritmus provádí zjednodušeně následující body:
+
+\begin{itemize}
+  \item \textbf{bezpečnostní kontroly} -- testuje se, zda můžeme navigovat vybraný cílový procházecí kontext;
+  \item \textbf{výběr efektivního cílového procházecího kontextu} -- pokud není navigace prováděna v procházecím kontextu <IFRAME> se seamless atributem elementu, pak je efektivní cílový kontext vždy totožný s vybraným cílovým procházecícm kontextem;
+  \item \textbf{navigace na fragment dokumentu} -- když navigujeme pouze fragment dokumentu, pak se provede okamžitá navigace na pozici fragmentu, aktualizuje se historie a tímto bodem navigace ihned končí; 
+  \item \textbf{uvolnění aktivního dokumentu} -- aktivní dokument cílového procházecího kontextu je uvolněn;
+  \item \textbf{získání ovladače na stažení zdroje} -- při úspěchu přechází navigační požadavek do asynchronního zpracovávání;
+  \item \textbf{přesměrování} -- když je zapotřebí přesměrovat na jiný zdroj;
+  \item \textbf{získání ovladače na zpracování zdroje} -- vyhledání ovladače v registru ovladačů ContentHandlerRegistry; 
+  \item \textbf{zpracování zdroje} -- zavolání metody perform() nad vyhledaným ovladačem.
+\end{itemize}
+
+Výše popsané třídy navigování se týkaly jádra uživatelského agenta. Navigovat dokumenty je ovšem přístupné i z klientského JavaScriptu. Pro tento účel slouží rozhraní Location, které bylo také zcela implementováno (kód xy). Každý dokument procházecího kontextu vlastní unikátní instanci tohoto rozhraní.
+ 
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.65}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-navigation-Location.pdf}
+    }
+    \caption{Diagram tříd znázorňující rozhraní Location}
+    \label{Figure.Location}
+  \end{center}
+\end{figure}
+ 
+Pro implementaci bylo využito navigačního kontroleru. Metody assign() a reload() volají metodu kontroleru navigate() s nastaveným příznakem replacementEnabled. Metoda assign() naviguje nový dokument bez přepsání právě aktivního dokumentu, příznak replacementEnabled není nastaven. Všechny metody nastavují příznak exceptionEnabled, takže jsou navigačním požadavkem generovány bezpečnostní výjimky.
+
+\section{Procházení historie}
+\label{Chapter.Implementation.TraversingHistory}
+
+Během navigování stránek dochází ke změně aktivních dokumentů. Všechny předchozí navigované dokumenty jsou nadále uchovávány v historii sezení. Průchodem historie sezení jde kdykoliv navracet dokumenty, které nejsou momentálně aktivní v současném procházecím kontextu. Historie sezení se vytváří v rámci konstrukce procházecího kontextu, jenž danou historii vlastní. Historii sezení si lze představit jako pole všech někdy navigovaných dokumentů, s ukazatelem na aktivní záznam vlastnící aktivní dokument procházecího kontextu. (obr. XY)
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.50}{
+      \includegraphics{fig/history.pdf}
+    }
+    \caption{Vizualizace historie sezení se záznamy mezi kterými lze posouvat}
+    \label{Figure.SessionHistory}
+  \end{center}
+\end{figure}
+
+V implementaci je historie sezení představována třídou SessionHistory (obrázek XY). Je implementována jako lineární list záznamů historie SessionHistoryEntry. Záznam historie musí minimálně uchovávat adresu zdroje, odkud byl dokument získán. Dále by měl záznam obsahovat dokument, který byl vytvořen během navigace, která vytvořila tento záznam. A dodatečně může záznam uchovávat titulek a datum navštívení stránky, stavový objekt StateObject a uživatelský kontext UserPersistedState. Stavovým objektem rozumíme objekty, které lze v historii uchovávat přes rozhraní History, popsané níže. Uživatelským kontextem rozumíme např. pozice posuvníků před přesunutím na jiný záznam historie a jiné nastavení specifické pro danou HTML stránku. 
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.77}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-history-SessionHistory.pdf}
+    }
+    \caption{Diagram tříd znázorňující historii sezení}
+    \label{Figure.SessionHistory}
+  \end{center}
+\end{figure}
+
+Tak jako u procházecích kontextů a navigačního kontroleru, implementuje objekt historie sezení jednoduchý observer mechanismus. Typy událostí generované historií sezení jsou:
+
+\begin{itemize}
+  \item \textbf{\texttt{TRAVERSED}} -- událost generovaná po dokončení přechodu z jednoho záznamu historie na nový záznam historie;
+  \item \textbf{\texttt{INSERTED}} -- vložení nového záznamu na konec listu historie sezení;
+  \item \textbf{\texttt{CURRENT\_CHANGED}} -- pokud byl nastaven nový aktuální záznam historie. Událost zároveň značí, že došlo ke změně aktivního dokumentu procházecího kontextu, který vlastní dané historie sezení; 
+  \item \textbf{\texttt{REMOVED}} -- smazání záznamu z historie sezení;
+  \item \textbf{\texttt{DESTROYED}} -- zrušení historie sezení.
+\end{itemize}
+
+Třída sezení historie SessionHistory obsahuje metody pro přidávání záznamů historie, jejich odebírání, filtrování a nastavování aktivního záznamu. Celý proces průchodu historií a změny aktivního záznamu na jiný záznam historie je obsáhlejší proces, který zahrnuje více kroků. Průchod historií sezení je implementován metodou traverseHistory(), která bere jako parametr záznam sezení historie, který by měl být zvolen jako aktivní. Během průchodu historií se zjednodušeně provádí následující kroky:
+
+\begin{enumerate}
+  \item Zjištění, zda navigovaný záznam obsahuje objekt dokumentu. Pokud není dokument obsažen a my si přejeme posunout na tuto pozici v historii, musí se dokument obnovit zavoláním metody update() daného navigačního kontroleru.
+  \item Aktualizace uživatelského kontextu – uchování např. pozic posuvníků.
+  \item Odstranění všech úloh, které by byly po průchodu historií neplatné.
+  \item Nastavení nového aktivního záznamu historie sezení.
+  \item Generování události load, pokud je dokument kompletní.
+  \item Smazání všech záznamů před aktivním záznamem, pokud je to požadováno.
+  \item Aktualizace uživatelského prostředí z uchovaného uživatelského kontextu.
+  \item Kontrola, zda se změnil v URL fragment nebo stavový objekt a generování patřičných událostí hashchange nebo popstate.
+\end{enumerate}
+
+Pro zpřístupnění procházení historie z kódu klientského JavaScriptu bylo nutné implementovat rozhraní History. K implementaci požadovaného rozhraní bylo zapotřebí sjednotit všechny historie sezení všech procházecích kontextů procházecí jednotky. Rozhraní History totiž poskytuje procházení všech dokumentů, které kdy byly navigovány v procházecí jednotce. Spojení všech záznamů historií sezení dané procházecí jednotky proběhlo na základě času jednotlivých záznamů, kdy byly tyto záznamy vytvořeny, neboli kdy byly dokumenty záznamů navigovány. Aktuální záznam společné historie je vždy určen podle posledně vybraného záznamu během průchodu historií sezení v některém procházecím kontextu procházecí jednotky. Tvorba společné historie sezení je znázorněna na obrázku XY, kde čísla záznamu reprezentují unikátní čísla generovaná v čase, kdy byl záznam vytvořen. Posledně vybraný záznam je záznam s číslem 4.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.40}{
+      \includegraphics{fig/joint-history.pdf}
+    }
+    \caption{Vizualizace vytvoření sjednocené historie sezení}
+    \label{Figure.SessionHistory}
+  \end{center}
+\end{figure}
+
+Sjednocenou historii sezení vlastní procházecí jednotka. V implementaci je představována třídou JointSessionHistory. Třída vnitřně registruje BrowsingContextListener a SessionHistoryListener nad všemi procházecími kontexty a historiemi sezení procházecí jednotky. Nasloucháním odpovídajících událostí získává neustálé informace o změnách historie, čímž se může sama sebe aktualizovat – vytvářet sjednocenou historii. Reference na implementaci rozhraní History, jež zpřístupňuje sjednocenou historii z kódu JavaScriptu, se nachází v dokumentu. Kromě procházení společné historie sezení, rozhraní History umožňuje uchovávat stavový objekt state. Nový stavový objekt můžeme uložit pomocí speciální metody pushState(), která daný objekt nastavuje v aktuálním záznamu historie sezení. Když procházíme historií, je tento stavový objekt vždy z vybraného záznamu historie přečten a nastaven do atributu state rozhraní History.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-history-History.pdf}
+    }
+    \caption{Diagram tříd znázorňující rozhraní History}
+    \label{Figure.History}
+  \end{center}
+\end{figure}
 
 \chapter{Závěr}
 \label{Chapter.Final}
