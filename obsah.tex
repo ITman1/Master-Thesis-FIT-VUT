@@ -27,22 +27,23 @@ Problematikou skriptování v HTML dokumentech se zabývá kapitola \ref{Chapter
 \section{Klientské skripty v HTML dokumentu}
 \label{Chapter.DependenciesAnalysis.ScriptsInHTML}
 
-Klientský skript je program, který může doprovázet HTML dokument nebo být do něj přímo vložen. Skript je vykonáván na straně klienta buď ihned po jeho načtení, nebo až poté, co je načten celý dokument. Skripty mohou:
+Klientský skript je program, který může doprovázet HTML dokument nebo být do něj přímo vložen. Skript je vykonáván na straně klienta buď ihned po jeho načtení, po načtení celého dokumentu nebo při výskytu některé události. Skripty mohou:
 
 \begin{itemize}
-  \item sloužit k modifikaci obsahu dokumentu, jakmile je načten;
-  \item být spuštěny událostmi ovládacích prvků;
+  \item sloužit k modifikaci obsahu dokumentu;
+  \item být spuštěny událostmi ovládacích prvků a jinými událostmi prohlížeče;
   \item být využity pro validaci a odesílání obsahu formuláře na server.
 \end{itemize}
 
-\noindent Pro vložení skriptu do HTML dokumentu máme dva způsoby:
+\noindent Pro vložení nového skriptu do HTML dokumentu a jeho příp. vykonání máme několik způsobů, např.:
 
 \begin{enumerate}
   \item Uvést skript v dokumentu ve speciální značce \texttt{<script>};
-  \item Vložit skript do atributu události elementů, které podporují volání akcí. 
+  \item Vložit skript do atributu určeného pro událostní obslužnou rutinu, který se bude vykonávat vždy po výskytu dané události, např. do atributu \texttt{onclick}.
+  \item Vložit skript do dokumentu dynamicky tím, že vložíme do dokumentu pomocí skriptu nový element \texttt{<script>} a definujeme jeho vykonávací kód.
 \end{enumerate}
 
-Skripty ve značkách \texttt{<script>} jsou spouštěny samostatně a vždy bez závislosti na výskytu některé události. Při zpracovávání dokumentu jsou jednotlivé skripty v těch značkách vykonány. Jak a v jakém pořadí spouštění skriptů probíhá, popíšeme v této kapitole.
+Skripty ve značkách \texttt{<script>} jsou spouštěny samostatně, vždy pouze jednou a nikoliv opakovaně tak jako skripty vytvářené v atributu pro událostní obslužné rutiny. Během zpracovávání dokumentu jsou jednotlivé skripty v těch značkách vykonány. Jak a v jakém pořadí spouštění skriptů probíhá, popíšeme dále v této kapitole.
 
 V rámci samotné značky \texttt{<script>} můžeme podle doporučené specifikace HTML 5 rozlišit celkem 6 atributů. Všechny atributy řídí vykonávání skriptu v určitém momentu jeho zpracovávání a jejich dynamická změna nemá žádný efekt na průběh skriptu. Specifikace uvádí následující atributy:
 
@@ -52,7 +53,7 @@ V rámci samotné značky \texttt{<script>} můžeme podle doporučené specifik
   \item \textbf{\texttt{charset}} -- typ kódování souboru s externím skriptem;
   \item \textbf{\texttt{async}} -- udává, zda bude skript spuštěn asynchronně;
   \item \textbf{\texttt{defer}} -- specifikuje odložení spuštění skriptu až do dokončení načtení dokumentu;
-  \item \textbf{\texttt{crossorigin}} -- specifikuje umístění zdroje skriptu při selhání načítání skriptu. 
+  \item \textbf{\texttt{crossorigin}} -- pokud je atribut přítomem, pak bude na server zaslán CORS\footnote{ CORS (Cross-origin resource sharing) -- Mechanismus umožňující stahování zdrojů z více povolených domén než pouze z domény, ze které pochází dotazovaný zdroj.} požadavek. 
 \end{enumerate}
 
 Kromě samotných atributů elementu skriptu specifikace HTML 5 doporučuje asociovat s elementem \texttt{<script>} i speciální příznaky. Příznaky jsou nastavovány na základě toho, kde byl element skriptu zpracován a na základě výše zmíněných atributů. Uvedenými příznaky ve specifikaci jsou:
@@ -394,9 +395,9 @@ jednotlivé aspekty JavaScriptu pro prohlížeč. Předpokládá se, že vyvíje
 
 K separaci nových implementovaných vlastností JavaScriptu byla navržena technika injekce funkčnosti do vytvořeného kontextu (obrázek \ref{Figure.GlobalScopeInjectionsDesign}). Pro přidání nové funkčnosti do globálního scopu kontextu bude nutno implementovat abstraktní třídu \texttt{ScriptContextInject}. Samotnou injekci do globálního scopu bude provádět metoda \texttt{inject()}. Aby skriptovací stroj věděl, jaká rozšíření má injektovat do svého scopu, měla by být jednotlivá rozšíření registrována u skriptovacího stroje metodou \texttt{installContextInject()}. Injekce bude prováděna vždy po vyhodnocení některého skriptu, nebo po inicializování nového dokumentu. Pořadí jednotlivých injekcí bude v základní implementaci určovat metoda \texttt{getPriority()}. Zda je injekce validní, tudíž proveditelná, bude získáváno metodou \texttt{isValid()}. Příkladem, kdy injekce by byla neproveditelná, by mohla být např. situace, kdy není ještě dokument úplně načten a některé rozšíření by záviselo právě na existenci dokumentu.
 
-Neustálá instalace nové injekce rozšíření do skriptovacího stroje s příchodem nového rozšíření by se postupem času nejevila jako dobré řešení. Bylo by výhodné, aby s novým rozšířením došlo i k automatické instalaci tohoto rozšíření do skriptovacího stroje, tzn., abychom dosáhli obrácení řízení -- IoC (Inversion of Control). Pro tento účel byla navržena třída \texttt{ScriptContextInjector}, která kromě metod samotné injekce bude provádět i registraci rozšíření v odpovídajícím skriptovacím stroji. K získání reference registru skriptovacích strojů \texttt{DocumentScriptManager} z objektů ScriptContextInjector se bude používat injektáž závislosti -- DI (Dependency Injection). Pro podporu DI je v plánu použít knihovnu Google Juice. Ve třídě \texttt{ScriptContextInjector} se v závislosti na typu skriptu vyhledá v registru skriptovacích strojů odpovídající stroj, ve kterém proběhne registrace samotné injekce rozšíření. 
+Neustálá instalace nové injekce rozšíření do skriptovacího stroje s příchodem nového rozšíření by se postupem času nejevila jako dobré řešení. Bylo by výhodné, aby s novým rozšířením došlo i k automatické instalaci tohoto rozšíření do skriptovacího stroje, tzn., abychom dosáhli obrácení řízení -- IoC (Inversion of Control). Pro tento účel byla navržena třída \texttt{ScriptContextInjector}, která kromě metod samotné injekce bude provádět i registraci rozšíření v odpovídajícím skriptovacím stroji. Bude-li to implementačně vhodné, k získání reference registru skriptovacích strojů \texttt{DocumentScriptManager} z objektů ScriptContextInjector se bude používat injektáž závislosti -- DI (Dependency Injection). Pro podporu DI je v plánu použít knihovnu Google Juice. Ve třídě \texttt{ScriptContextInjector} se v závislosti na typu skriptu vyhledá v registru skriptovacích strojů odpovídající stroj, ve kterém proběhne registrace samotné injekce rozšíření. 
 
-Pokud celý návrh injektování shrneme, tak automatická registrace injekce rozšíření bude probíhat v abstraktní třídě \texttt{ScriptContextInjector}. O tom, do jakého skriptovacího stroje by se měla injekce rozšíření vložit, bude informovat pro jazyk JavaScript např. třída injektoru \texttt{JavaScriptContextInjector}. Samotná injekce rozšíření bude přitom implementována až specifickými injektory, jako jsou např. \texttt{DocumentInjector}, \texttt{HistoryInjector}, apod.
+Pokud celý návrh injektování shrneme, tak automatická registrace injekce rozšíření bude probíhat v abstraktní třídě \texttt{ScriptContextInjector}. O tom, do jakého skriptovacího stroje by se měla injekce rozšíření vložit, bude informovat pro jazyk JavaScript např. třída injektoru \texttt{JavaScriptContextInjector}. Samotná injekce rozšíření bude přitom implementována až specifickými injektory, jako jsou např. \texttt{XMLHttpRequestInjector}, \texttt{ConsoleInjector}, apod.
 
 \section{Implementace stroje JavaScriptu podle normy JSR 223}
 \label{Chapter.Design.JavaScriptEngineJSR223}
@@ -462,9 +463,9 @@ Z uvedeného diagramu je patrné, že pouhá jedna registrace vlastního vyhodno
 
 Následující kapitola pojednává o realizaci rozšíření projektu CSSBox o možnost provádění skriptů v (X)HTML dokumentech (kapitola \ref{Chapter.Design}). Popis implementace je zaměřen na uvedení nejzákladnějších tříd, metod či funkcí, které implementují nejdůležitější části výsledné aplikace, přičemž podrobný popis lze nalézt v programových dokumentacích na přiloženém DVD (příloha \ref{Annex.dvdContent}).
 
-Cílem implementace bylo přidat podporu pro skriptování v (X)HTML dokumentech a zahrnout podmnožinu aktuální specifikace klientského JavaScriptu. Aby bylo možné implementovat klientské skriptovací enginy, bylo zapotřebí vytvořit jednoduché jádro prohlížeče implementující základní aspekty procházení stránek (kapitola XY). Pro snadné přidávání nových klientských skriptovacích enginů byla vytvořena abstraktní architektura pro skriptování (kapitola XY), ze které vychází i JavaScriptový klientský engine (kapitola XY).
+Cílem implementace bylo přidat podporu pro skriptování v (X)HTML dokumentech a zahrnout podmnožinu aktuální specifikace klientského JavaScriptu. Aby bylo možné implementovat klientské skriptovací enginy, bylo zapotřebí vytvořit jednoduché jádro prohlížeče implementující základní aspekty procházení stránek (kapitola \ref{Chapter.Implementation.BrowsingCore}). Pro snadné přidávání nových klientských skriptovacích enginů byla vytvořena abstraktní architektura pro skriptování (kapitola \ref{Chapter.Implementation.BrowsingCore}), ze které vychází i JavaScriptový klientský engine (kapitola \ref{Chapter.Implementation.JavaScriptEngine}).
 
-Implementace této práce se nachází v podbalících hlavního balíku projektu ScriptBox pojmenovaném \texttt{org.fit.cssbox.scriptbox}.  Názvy tříd, které tyto podbalíky obsahují, nebudou v této kapitole z důvodu zjednodušení a přehlednosti plně kvalifikovány. Stručné popisy jednotlivých balíků jsou v příloze XY.
+Implementace této práce se nachází v podbalících hlavního balíku projektu ScriptBox pojmenovaném \texttt{org.fit.cssbox.scriptbox}.  Názvy tříd, které tyto podbalíky obsahují, nebudou v této kapitole z důvodu zjednodušení a přehlednosti plně kvalifikovány. Stručné popisy jednotlivých balíků jsou v příloze \ref{Annex.packageDescription}.
 
 \section{Jádro prohlížeče a jeho rozhraní}
 \label{Chapter.Implementation.BrowsingCore}
@@ -473,16 +474,16 @@ Jednotlivé implementace klientských skriptovacích enginů využívají různ�
 
 V této kapitole se budeme zabývat obecným jádrem pro procházení HTML stránek. Jelikož současná implementace probíhala primárně pro JavaScriptový engine, popíšeme také korespondující rozhraní, která jsou viditelná v klientském JavaScriptu. Jednotlivá implementovaná rozhraní se snaží v maximální možné míře využívat fundamentální koncept jádra prohlížeče. Samotné jádro je s těmito rozhraními provázáno jen minimálně.
 
-V kapitole XY nejprve definujeme základní pohled na prohlížeč jako na prohlížecí jednotky kontextu. Kapitola XY pojednává o událostní smyčce, která zapouzdřuje všechny úlohy prohlížeče. Navigace dokumentů a jeho navracení procházením historie je popsáno v kapitolách XY a XY. Následující kapitoly dokončují výklad a přidávají další rozhraní, která jsou viditelná z klientského JavaScriptu. 
+V kapitole \ref{Chapter.Implementation.BasicConcepts} nejprve definujeme základní pohled na prohlížeč jako na prohlížecí jednotky kontextu. Kapitola \ref{Chapter.Implementation.EventLoop} pojednává o událostní smyčce, která zapouzdřuje všechny úlohy prohlížeče. Navigace dokumentů a jeho navracení procházením historie je popsáno v kapitolách \ref{Chapter.Implementation.DocumentNavigation} a \ref{Chapter.Implementation.TraversingHistory}. Následující kapitoly dokončují výklad a přidávají další rozhraní, která jsou viditelná z klientského JavaScriptu. 
 
-\section{Základní koncepty prohlížeče}
+\subsection{Základní koncepty prohlížeče}
 \label{Chapter.Implementation.BasicConcepts}
 
 Prohlížečem budeme od této chvíle rozumět uživatelského agenta, angl. user agent, ať již bude, nebo nebude sloužit k prohlížení webu. Tento pojem bude reprezentovat instanci celého funkčního jádra, které umožňuje navigování HTML dokumentů a jiných zdrojů.
 
 V implementaci představuje uživatelského agenta třída \texttt{UserAgent}, která shromažďuje nastavení a umožňuje jednotný přístup ke sdíleným datům. Hlavní funkcí uživatelského agenta, je umožnění otevírání a zavírání procházecích jednotek \texttt{BrowsingUnit}, neboli jednotek, které zapouzdřují kontext na nejvyšší úrovni (okno, prohlížecí panel) pro zobrazování dokumentu. 
 
-Procházecí jednotky (\ref{Figure.UserAgentAndBrowsingUnit}) v sobě obsahují hlavní procházecí kontext \texttt{BrowsingContext}, který je reprezentován na této úrovni vždy třídou \texttt{WindowBrowsingContext}. Uvnitř jednotek je dále uchovávána reference na událostní smyčku (kapitola XY), historii procházení (kapitola XY) a zásobník právě prováděných skriptů (kapitola XY), které jsou společné pro všechny obsažené procházecí kontexty. Všechny výše zmíněné objekty jsou vytvářeny v rámci konstrukce procházecí jednotky.
+Procházecí jednotky (\ref{Figure.UserAgentAndBrowsingUnit}) v sobě obsahují hlavní procházecí kontext \texttt{BrowsingContext}, který je reprezentován na této úrovni vždy třídou \texttt{WindowBrowsingContext}. Uvnitř jednotek je dále uchovávána reference na událostní smyčku (kapitola \ref{Chapter.Implementation.EventLoop}), historii procházení (kapitola \ref{Chapter.Implementation.TraversingHistory}) a zásobník právě prováděných skriptů (kapitola \ref{Chapter.Implementation.ScriptInterface}), které jsou společné pro všechny obsažené procházecí kontexty. Všechny výše zmíněné objekty jsou vytvářeny v rámci konstrukce procházecí jednotky.
 
 \begin{figure}[H]
   \begin{center}
@@ -500,7 +501,7 @@ Procházecí kontexty mohou být různě hierarchicky stromově zanořeny. Koře
 
 Pokud je uživatelským agentem agent, který obsahuje uživatelské prostředí, tak má procházecí kontext velmi blízké provázání právě na toto uživatelské prostředí, ve kterém je zobrazován dokument. Proto byl kontext zvolen i pro definici rozhraní umožňujícího základní přístup k uživatelskému rozhraní z klientských skriptů. V kontextu se nachází rozhraní například pro navigační pole, statusový panel, posuvníky aj. Podle HTML 5 jsou tato uživatelská rozhraní viditelná skrze BarProp rozhraní . Abychom odstínili vytváření nových „schopnějších“ procházecích kontextů při každé potřebě na změnu uživatelského rozhraní, je možné tato rozhraní nastavovat v obecných a již implementovaných procházecích kontextech pomocí odpovídajících setterů. Jelikož základní uživatelský agent \texttt{UserAgent} žádné uživatelské prostředí nedefinuje, základní implementace procházecích kontextů neposkytuje ani kompletní implementaci BarProp rozhraní. Implementace je provedena pouze formou nekompletních metod, známých angl. pod pojmem stubs, který budeme od této chvíle v textu dále používat.
 
-Abstraktní třídu pro všechny procházecí kontexty představuje třída \texttt{BrowsingContext} (obrázek \ref{Figure.BrowsingContext}), která obsahuje metody pro vytváření a hierarchickou strukturalizaci procházecích kontextů a ostatní funkcionalitu společnou pro všechny specifické kontexty. Třída vlastní referenci na historii sezení (kapitola XY), navigační kontroler (kapitola XY) a objekt \texttt{WindowProxy} (kapitola XY).
+Abstraktní třídu pro všechny procházecí kontexty představuje třída \texttt{BrowsingContext} (obrázek \ref{Figure.BrowsingContext}), která obsahuje metody pro vytváření a hierarchickou strukturalizaci procházecích kontextů a ostatní funkcionalitu společnou pro všechny specifické kontexty. Třída vlastní referenci na historii sezení (kapitola \ref{Chapter.Implementation.TraversingHistory}), navigační kontroler (kapitola \ref{Chapter.Implementation.DocumentNavigation}) a objekt \texttt{WindowProxy} (kapitola \ref{Chapter.Implementation.WindowInterface}).
 
 \begin{figure}[H]
   \begin{center}
@@ -532,7 +533,7 @@ Všechny specifické implementované procházecí kontexty jsou znázorněny na 
   \end{center}
 \end{figure}
 
-Z třídy kontextu dědí další abstraktní třída \texttt{IFrameContainerBrowsingContext}, která je určena pro všechny procházecí kontexty, jenž mohou vytvářet zanořené procházecí přes značky \texttt{<iframe>}. Další třídy \texttt{WindowBrowsingContext} a \texttt{IFrameBrowsingContext} reprezentují již konkrétní procházecí kontexty. Třída \texttt{WindowBrowsingContext} představuje kontext na nejvyšší úrovni – tedy na úrovni okna. Druhá třída \texttt{IFrameBrowsingContext} pak plní funkci vnořeného kontextu vytvářeného uvnitř \texttt{IFrameContainerBrowsingContext} přes značku \texttt{<iframe>}. Pomocný kontext \texttt{AuxiliaryBrowsingContext} je dalším kontextem na nejvyšší s tím rozdílem, že není vytvářen procházecí jednotkou jako u kontextu okna. Kontext je naopak vytvářen libovolným specifickým kontextem, který potřebuje otevřít nové okno, vznikajícím např. navigací cíle \_blank.
+Z třídy kontextu dědí další abstraktní třída \texttt{IFrameContainerBrowsingContext}, která je určena pro všechny procházecí kontexty, jenž mohou vytvářet zanořené procházecí přes značky \texttt{<iframe>}. Další třídy \texttt{WindowBrowsingContext} a \texttt{IFrameBrowsingContext} reprezentují již konkrétní procházecí kontexty. Třída \texttt{WindowBrowsingContext} představuje kontext na nejvyšší úrovni -- tedy na úrovni okna. Druhá třída \texttt{IFrameBrowsingContext} pak plní funkci vnořeného kontextu vytvářeného uvnitř \texttt{IFrameContainerBrowsingContext} přes značku \texttt{<iframe>}. Pomocný kontext \texttt{AuxiliaryBrowsingContext} je dalším kontextem na nejvyšší s tím rozdílem, že není vytvářen procházecí jednotkou jako u kontextu okna. Kontext je naopak vytvářen libovolným specifickým kontextem, který potřebuje otevřít nové okno, vznikajícím např. navigací cíle \_blank.
 
 V průběhu implementace se naskytla potřeba pro získávání notifikací z procházecích kontextů při výskytu určité události, a tak byl implementován jednoduchý observer mechanismus nad procházecími kontexty. Procházecí kontext \texttt{BrowsingContext} může vyvolat události:
 
@@ -542,10 +543,10 @@ V průběhu implementace se naskytla potřeba pro získávání notifikací z pr
   \item \textbf{\texttt{DESTROYED}} -- pokud je daný kontext zrušen. 
 \end{itemize}
 
-\section{Událostní smyčka}
+\subsection{Událostní smyčka}
 \label{Chapter.Implementation.EventLoop}
 
-Abychom mohli pokračovat ve výkladu, je zapotřebí se seznámit s událostní smyčkou, která obsluhuje úlohy uživatelského agenta. Událostní smyčka umožňuje úlohy dle potřeby mazat, různě filtrovat nebo je oddělit podle jejich typu – zdroje úlohy. Smyčka dále sjednocuje přístup k API uživatelského agenta v jednom vlákně, aby nedocházelo k race condition a ulehčilo se řešení výlučných sekcí. Asynchronní žádosti na API, jako je např. navigování stránek nebo procházení historie, v určitém čase vždy zajistí vložení nové úlohy do událostní smyčky.
+Abychom mohli pokračovat ve výkladu, je zapotřebí se seznámit s událostní smyčkou, která obsluhuje úlohy uživatelského agenta. Událostní smyčka umožňuje úlohy dle potřeby mazat, různě filtrovat nebo je oddělit podle jejich typu -- zdroje úlohy. Smyčka dále sjednocuje přístup k API uživatelského agenta v jednom vlákně, aby nedocházelo k race condition a ulehčilo se řešení výlučných sekcí. Asynchronní žádosti na API, jako je např. navigování stránek nebo procházení historie, v určitém čase vždy zajistí vložení nové úlohy do událostní smyčky.
 
 V implementaci je událostní smyčka reprezentována třídou EventLoop a je vytvářena procházecí jednotkou v rámci její konstrukce. Zjednodušený diagram tříd znázorňující funkci událostní smyčky lze vidět na následujícím obrázku \ref{Figure.EventLoop}. 
 
@@ -567,16 +568,16 @@ Metoda spin() a její variace s prefixem spin zajišťují rotaci událostní sm
 
 Jak víme, každá úloha musí rozšiřovat abstraktní třídu Task. Úloha musí být dále také asociována s dokumentem a musí nést zdroj, podle kterého se rozhoduje, do jaké fronty se má úloha zařadit. Položka dokumentu v úloze velmi často slouží k určení cíle úlohy, čehož se využívá při odstraňování úloh pro dokumenty, které vystoupily z procházecího kontextu, např. pokud došlo k navigaci na jiný dokument. 
 
-Fronty úloh TaskQueues jsou rozšířením hašovací tabulky, která mapuje zdroje úloh na fronty přiřazené tomuto zdroji. Třída TaskQueues přidává nové metody pro intuitivnější práci s frontami úloh – metody pro vyhledávání úloh ve frontách, jejich filtraci a odstraňování.
+Fronty úloh TaskQueues jsou rozšířením hašovací tabulky, která mapuje zdroje úloh na fronty přiřazené tomuto zdroji. Třída TaskQueues přidává nové metody pro intuitivnější práci s frontami úloh -- metody pro vyhledávání úloh ve frontách, jejich filtraci a odstraňování.
 
 Cílem plánovače úloh TaskQueuesScheduler bylo zajistit oddělené plánování úloh od událostní smyčky a umožnit v budoucnu různé implementace plánování. Tak jako událostní smyčka, má plánovač vlastní vlákno pro plánování. Přes své rozhraní přijímá nové úlohy, které vkládá do front úloh. Ve vlastním vykonávacím vlákně tyto úlohy podle plánovacího algoritmu vybírá a vkládá je do fronty naplánovaných úloh. V současnosti jediná implementace plánovače úloh RoundRobinScheduler zajišťuje rotační odebírání úloh z front úloh, přičemž pokud je některý zdroj úlohy neaktivní a jeho fronta je prázdná, je po určitém časovém kvantu vnitřním časovačem odstraněn z pole pro rotaci.
 
-\section{Stahování zdrojů}
+\subsection{Stahování zdrojů}
 \label{Chapter.Implementation.DownloadingResources}
 
-Předtím než přejdeme k popisu dokumentu a jeho parsování, popíšeme v následující kapitole, jak je řešeno jeho stažení. Stahování bylo řešeno obecně pro různé typy komunikačních protokolů a pro různé typy formátů obsahu. Jelikož lze stahovat různé druhy obsahu, nikoliv pouze dokumenty, budeme se v této kapitole bavit pouze o zdrojích. Pokud není obsahem zdroje přímo dokument, jsou obsahy často zpracovávány a do dokumentu dodatečně vkládány. Zpracovávání obsahu zdrojů popíšeme blíže v následující kapitole XY.
+Předtím než přejdeme k popisu dokumentu a jeho parsování, popíšeme v následující kapitole, jak je řešeno jeho stažení. Stahování bylo řešeno obecně pro různé typy komunikačních protokolů a pro různé typy formátů obsahu. Jelikož lze stahovat různé druhy obsahu, nikoliv pouze dokumenty, budeme se v této kapitole bavit pouze o zdrojích. Pokud není obsahem zdroje přímo dokument, jsou obsahy často zpracovávány a do dokumentu dodatečně vkládány. Zpracovávání obsahu zdrojů popíšeme blíže v následující kapitole \ref{Chapter.Implementation.ContentHandling}.
 
-Základní třídou pro všechny zdroje je v implementaci třída Resource (viz obrázek XY). Třída poskytuje vstupní datový tok obsahu zdroje, nese základní informace o tom, z jaké adresy byl zdroj získán a typu jeho obsahu. Informuje, zda zdroj je dostupný nebo jestli by mělo být provedeno přesměrování. Pokud je zdroj získáván pomocí URLConnection rozhraní, existuje v implementaci bližší reprezentace pro tyto zdroje – abstraktní třída URLConnectionResource. Byly implementovány celkem 4 druhy konkrétních zdrojů: HttpResource, HttpsResource, FileResource a JavaScriptResource. V současné době lze tedy stahovat zdroje z URL adres, jež nesou protokoly file, http, https a javascript.
+Základní třídou pro všechny zdroje je v implementaci třída Resource (viz obrázek \ref{Figure.Resource}). Třída poskytuje vstupní datový tok obsahu zdroje, nese základní informace o tom, z jaké adresy byl zdroj získán a typu jeho obsahu. Informuje, zda zdroj je dostupný nebo jestli by mělo být provedeno přesměrování. Pokud je zdroj získáván pomocí URLConnection rozhraní, existuje v implementaci bližší reprezentace pro tyto zdroje -- abstraktní třída URLConnectionResource. Byly implementovány celkem 4 druhy konkrétních zdrojů: HttpResource, HttpsResource, FileResource a JavaScriptResource. V současné době lze tedy stahovat zdroje z URL adres, jež nesou protokoly file, http, https a javascript.
 
 \begin{figure}[H]
   \begin{center}
@@ -588,7 +589,7 @@ Základní třídou pro všechny zdroje je v implementaci třída Resource (viz 
   \end{center}
 \end{figure}
 
-Pokud hovoříme o stažení zdroje, máme na mysli navázání připojení a podle daného protokolu komunikaci se serverem. Komunikaci se serverem a vytváření konkrétního zdroje zajišťují třídy ovladačů – třídy rozšiřující abstraktní třídu pro ovladače FetchHandler. Každý konkrétní ovladač vytváří jeden z výše zmíněných specifických zdrojů (viz obrázek XY). Pro stažení zdroje je určena metoda fetch(), která vnitřně volá chráněnou metodu fetchImpl(). Pokud byl ovladač vytvořen v synchronním módu, pak tato operace způsobí blokování do doby stažení zdroje. Pro získání staženého zdroje slouží metoda getResource(), která také volá chráněnou metodu, tentokrát getResourceImpl(). 
+Pokud hovoříme o stažení zdroje, máme na mysli navázání připojení a podle daného protokolu komunikaci se serverem. Komunikaci se serverem a vytváření konkrétního zdroje zajišťují třídy ovladačů -- třídy rozšiřující abstraktní třídu pro ovladače FetchHandler. Každý konkrétní ovladač vytváří jeden z výše zmíněných specifických zdrojů (viz obrázek \ref{Figure.FetchRegistry}). Pro stažení zdroje je určena metoda fetch(), která vnitřně volá chráněnou metodu fetchImpl(). Pokud byl ovladač vytvořen v synchronním módu, pak tato operace způsobí blokování do doby stažení zdroje. Pro získání staženého zdroje slouží metoda getResource(), která také volá chráněnou metodu, tentokrát getResourceImpl(). 
 
 \begin{figure}[H]
   \begin{center}
@@ -602,36 +603,37 @@ Pokud hovoříme o stažení zdroje, máme na mysli navázání připojení a po
 
 V praxi při získávání zdroje máme k dispozici pouze jeho URL. Nevíme předem, jaký ovladač pro jeho stažení použít. Přesto bychom chtěli mít jednotné rozhraní, které by převzalo předanou URL a vyhodnotilo, zda je zdroj stažitelný, popř. ho i stáhlo. Za tímto účelem vznikl registr všech ovladačů FetchRegistry, který shromažďuje všechny podporované ovladače a umožňuje nad nimi vyhledávat podle protokolu předané URL. Registr registruje třídy ovladačů a vytváří na ně asociace v závislosti na tom, jaké protokoly podporují. Podporované protokoly jsou získávány ze speciální anotace třídy FetchHandlerPreamble, která musí být přítomna u každé třídy registrovaného ovladače.
 
-\section{Zpracovávání obsahu zdrojů}
+\subsection{Zpracovávání obsahu zdrojů}
 \label{Chapter.Implementation.ContentHandling}
 
-V předešlé kapitole XY bylo popsáno, jak lze získávat zdroje. Zdroje musí být ovšem dále zpracovávány v závislosti na typu obsahu, který představují, převedeny na dokument a až poté mohou být zobrazeny. Pro zpracovávání byla zvolena podobná návrhová myšlenka jako pro získávání zdrojů. Byl implementován registr továrniček ovladačů ContentHandlerRegistry, který spravuje továrničky ovladačů pro různé typy obsahů a získává instance ovladačů v závislosti na požadovaném MIME typu obsahu. 
+V předešlé kapitole \ref{Chapter.Implementation.DownloadingResources} bylo popsáno, jak lze získávat zdroje. Zdroje musí být
+ovšem dále zpracovávány v závislosti na typu obsahu, který představují, převedeny na dokument a až poté mohou být zobrazeny. Pro zpracovávání byla zvolena podobná návrhová myšlenka jako pro získávání zdrojů. Byl implementován registr továren ovladačů ContentHandlerRegistry, který spravuje továrny ovladačů pro různé typy obsahů a získává instance ovladačů v závislosti na požadovaném MIME typu obsahu.
 
 \begin{figure}[H]
   \begin{center}
     \scalebox{0.80}{
       \includegraphics{fig/org-fit-cssbox-scriptbox-resource-ContentHandlerRegistry.pdf}
     }
-    \caption{Diagram tříd znázorňující registr továrniček ovladačů}
+    \caption{Diagram tříd znázorňující registr továren ovladačů}
     \label{Figure.ContentHandlerRegistry}
   \end{center}
 \end{figure}
 
-Třída ovladače, která zajišťuje zpracovávání daného typu obsahu, musí být konkrétní třídou nad abstraktní třídou ContentHandler. Pro zpracování obsahu se volá metoda perform (), která přijímá zdroj ke zpracování. V současné době je implementován pouze jeden ovladač – na zpracovávání HTML dokumentů HtmlDocumentHandler, který vkládá do událostní smyčky úlohu, jež zajišťuje tvorbu dokumentu, přidání nového dokumentu do historie, její aktualizaci a v poslední řadě zahájení parsování dokumentu. V implementaci jsou také připraveny návrhy tříd ovladačů na zpracovávání obrázků, textových souborů, XML dokumentů, médií, aj.
+Třída ovladače, která zajišťuje zpracovávání daného typu obsahu, musí být konkrétní třídou nad abstraktní třídou ContentHandler. Pro zpracování obsahu se volá metoda perform (), která přijímá zdroj ke zpracování. V současné době je implementován pouze jeden ovladač -- na zpracovávání HTML dokumentů HtmlDocumentHandler, který vkládá do událostní smyčky úlohu, jež zajišťuje tvorbu dokumentu, přidání nového dokumentu do historie, její aktualizaci a v poslední řadě zahájení parsování dokumentu. V implementaci jsou také připraveny návrhy tříd ovladačů na zpracovávání obrázků, textových souborů, XML dokumentů, médií, aj.
 
-Z důvodu potřeby podobné funkčnosti v jiné části implementace – výběru skriptovacího enginu v závislosti na MIME typu skriptu (viz kap. XY) byly implementovány generické třídy pro správu továrniček objektů jakéhokoliv typu. Abstraktní továrnička, která obsluhuje získávání obsahů podporovaného MIME typu, je v implementaci nazvána MimeContentFactoryBase. Každá konkrétní továrnička redefinuje metodu pro vytváření obsahu getContent() a metody pro zjištění podporovaných MIME typů. Rozlišujeme dva druhy MIME typů:
+Z důvodu potřeby podobné funkčnosti v jiné části implementace -- výběru skriptovacího enginu v závislosti na MIME typu skriptu (viz kapitola \ref{Chapter.Implementation.ScriptEngines}) byly implementovány generické třídy pro správu továren objektů jakéhokoliv typu. Abstraktní továrna, která obsluhuje získávání obsahů podporovaného MIME typu, je v implementaci nazvána MimeContentFactoryBase. Každá konkrétní továrna redefinuje metodu pro vytváření obsahu getContent() a metody pro zjištění podporovaných MIME typů. Rozlišujeme dva druhy MIME typů:
 
 \begin{itemize}
-  \item \textbf{explicitně podporované} -- typy, které předem můžeme určit, a o kterých víme, že továrnička bude tyto typy podporovat, tzn. známe celou jejich podobu, např. text/html; Pro zjištění těchto typů slouží metoda getExplicitlySupportedMimeTypes();
+  \item \textbf{explicitně podporované} -- typy, které předem můžeme určit, a o kterých víme, že továrna bude tyto typy podporovat, tzn. známe celou jejich podobu, např. text/html; Pro zjištění těchto typů slouží metoda getExplicitlySupportedMimeTypes();
   \item \textbf{implicitně podporované} -- typy, kde rozhodne o jejich platnosti až jejich formát, částečná shoda, např. pouze prefix text/; Pro test, zda se jedná o implicitně podporovaný typ je vyčleněná metoda isImplicitlySupported().
 \end{itemize}
 
-\section{Navigace mezi dokumenty}
+\subsection{Navigace mezi dokumenty}
 \label{Chapter.Implementation.DocumentNavigation}
 
-V kapitole XY byla popsána metodika, jak se získávají zdroje, jež lze využít nejenom pro stahování dokumentů, ale i pro získávání souborů kaskádových stylů nebo externích skriptů během načítání stránky. Předchozí XY kapitola se zabývala výhradně zpracováním obsahu zdroje, vytvářením dokumentu a jeho zobrazením. Celý proces, který zahrnuje stažení zdroje a následné zobrazení dokumentu, přičemž je změněn předchozí aktivní dokument, lze nazvat navigací mezi dokumenty.
+V kapitole \ref{Chapter.Implementation.DownloadingResources} byla popsána metodika, jak se získávají zdroje, jež lze využít nejenom pro stahování dokumentů, ale i pro získávání souborů kaskádových stylů nebo externích skriptů během načítání stránky. Předchozí kapitola \ref{Chapter.Implementation.ContentHandling} se zabývala výhradně zpracováním obsahu zdroje, vytvářením dokumentu a jeho zobrazením. Celý proces, který zahrnuje stažení zdroje a následné zobrazení dokumentu, přičemž je změněn předchozí aktivní dokument, lze nazvat navigací mezi dokumenty.
 
-Požadavky na navigování nového dokumentu mohou přicházet asynchronně. V implementaci je vstupním bodem pro příchod nových požadavků navigační kontroler – třída NavigationController. Kontroler všechny požadavky registruje a pokouší se je obsloužit. Obsluha požadavků je delegována třídě požadavku NavigationAttempt, která o stavu zpracování požadavku informuje svůj kontroler pomocí callback metod rozhraní NavigationAttemptCallback. Callback metody informují o následujících stavech:
+Požadavky na navigování nového dokumentu mohou přicházet asynchronně. V implementaci je vstupním bodem pro příchod nových požadavků navigační kontroler -- třída NavigationController. Kontroler všechny požadavky registruje a pokouší se je obsloužit. Obsluha požadavků je delegována třídě požadavku NavigationAttempt, která o stavu zpracování požadavku informuje svůj kontroler pomocí callback metod rozhraní NavigationAttemptCallback. Callback metody informují o následujících stavech:
 
 \begin{itemize}
   \item \textbf{vyzrání} -- navigovaný dokument byl přidán do historie, ale stále není kompletní;
@@ -669,7 +671,7 @@ Pro vykonání a spuštění navigačního algoritmu je vyčleněná metoda perf
 
 \begin{itemize}
   \item \textbf{bezpečnostní kontroly} -- testuje se, zda můžeme navigovat vybraný cílový procházecí kontext;
-  \item \textbf{výběr efektivního cílového procházecího kontextu} -- pokud není navigace prováděna v procházecím kontextu <IFRAME> se seamless atributem elementu, pak je efektivní cílový kontext vždy totožný s vybraným cílovým procházecícm kontextem;
+  \item \textbf{výběr efektivního cílového procházecího kontextu} -- pokud není navigace prováděna v procházecím kontextu \texttt{<iframe>} se seamless atributem elementu, pak je efektivní cílový kontext vždy totožný s vybraným cílovým procházecícm kontextem;
   \item \textbf{navigace na fragment dokumentu} -- když navigujeme pouze fragment dokumentu, pak se provede okamžitá navigace na pozici fragmentu, aktualizuje se historie a tímto bodem navigace ihned končí; 
   \item \textbf{uvolnění aktivního dokumentu} -- aktivní dokument cílového procházecího kontextu je uvolněn;
   \item \textbf{získání ovladače na stažení zdroje} -- při úspěchu přechází navigační požadavek do asynchronního zpracovávání;
@@ -678,7 +680,7 @@ Pro vykonání a spuštění navigačního algoritmu je vyčleněná metoda perf
   \item \textbf{zpracování zdroje} -- zavolání metody perform() nad vyhledaným ovladačem.
 \end{itemize}
 
-Výše popsané třídy navigování se týkaly jádra uživatelského agenta. Navigovat dokumenty je ovšem přístupné i z klientského JavaScriptu. Pro tento účel slouží rozhraní Location, které bylo také zcela implementováno (kód xy). Každý dokument procházecího kontextu vlastní unikátní instanci tohoto rozhraní.
+Výše popsané třídy navigování se týkaly jádra uživatelského agenta. Navigovat dokumenty je ovšem přístupné i z klientského JavaScriptu. Pro tento účel slouží rozhraní Location, které bylo také zcela implementováno (obrázek \ref{Figure.Location}). Každý dokument procházecího kontextu vlastní unikátní instanci tohoto rozhraní.
  
 \begin{figure}[H]
   \begin{center}
@@ -692,10 +694,10 @@ Výše popsané třídy navigování se týkaly jádra uživatelského agenta. N
  
 Pro implementaci bylo využito navigačního kontroleru. Metody assign() a reload() volají metodu kontroleru navigate() s nastaveným příznakem replacementEnabled. Metoda assign() naviguje nový dokument bez přepsání právě aktivního dokumentu, příznak replacementEnabled není nastaven. Všechny metody nastavují příznak exceptionEnabled, takže jsou navigačním požadavkem generovány bezpečnostní výjimky.
 
-\section{Procházení historie}
+\subsection{Procházení historie}
 \label{Chapter.Implementation.TraversingHistory}
 
-Během navigování stránek dochází ke změně aktivních dokumentů. Všechny předchozí navigované dokumenty jsou nadále uchovávány v historii sezení. Průchodem historie sezení jde kdykoliv navracet dokumenty, které nejsou momentálně aktivní v současném procházecím kontextu. Historie sezení se vytváří v rámci konstrukce procházecího kontextu, jenž danou historii vlastní. Historii sezení si lze představit jako pole všech někdy navigovaných dokumentů, s ukazatelem na aktivní záznam vlastnící aktivní dokument procházecího kontextu. (obr. XY)
+Během navigování stránek dochází ke změně aktivních dokumentů. Všechny předchozí navigované dokumenty jsou nadále uchovávány v historii sezení. Průchodem historie sezení jde kdykoliv navracet dokumenty, které nejsou momentálně aktivní v současném procházecím kontextu. Historie sezení se vytváří v rámci konstrukce procházecího kontextu, jenž danou historii vlastní. Historii sezení si lze představit jako pole všech někdy navigovaných dokumentů, s ukazatelem na aktivní záznam vlastnící aktivní dokument procházecího kontextu (obrázek \ref{Figure.SessionHistory}).
 
 \begin{figure}[H]
   \begin{center}
@@ -707,7 +709,7 @@ Během navigování stránek dochází ke změně aktivních dokumentů. Všechn
   \end{center}
 \end{figure}
 
-V implementaci je historie sezení představována třídou SessionHistory (obrázek XY). Je implementována jako lineární list záznamů historie SessionHistoryEntry. Záznam historie musí minimálně uchovávat adresu zdroje, odkud byl dokument získán. Dále by měl záznam obsahovat dokument, který byl vytvořen během navigace, která vytvořila tento záznam. A dodatečně může záznam uchovávat titulek a datum navštívení stránky, stavový objekt StateObject a uživatelský kontext UserPersistedState. Stavovým objektem rozumíme objekty, které lze v historii uchovávat přes rozhraní History, popsané níže. Uživatelským kontextem rozumíme např. pozice posuvníků před přesunutím na jiný záznam historie a jiné nastavení specifické pro danou HTML stránku. 
+V implementaci je historie sezení představována třídou SessionHistory (obrázek \ref{Figure.SessionHistoryDiagram}). Je implementována jako lineární list záznamů historie SessionHistoryEntry. Záznam historie musí minimálně uchovávat adresu zdroje, odkud byl dokument získán. Dále by měl záznam obsahovat dokument, který byl vytvořen během navigace, která vytvořila tento záznam. A dodatečně může záznam uchovávat titulek a datum navštívení stránky, stavový objekt StateObject a uživatelský kontext UserPersistedState. Stavovým objektem rozumíme objekty, které lze v historii uchovávat přes rozhraní History, popsané níže. Uživatelským kontextem rozumíme např. pozice posuvníků před přesunutím na jiný záznam historie a jiné nastavení specifické pro danou HTML stránku. 
 
 \begin{figure}[H]
   \begin{center}
@@ -715,7 +717,7 @@ V implementaci je historie sezení představována třídou SessionHistory (obr�
       \includegraphics{fig/org-fit-cssbox-scriptbox-history-SessionHistory.pdf}
     }
     \caption{Diagram tříd znázorňující historii sezení}
-    \label{Figure.SessionHistory}
+    \label{Figure.SessionHistoryDiagram}
   \end{center}
 \end{figure}
 
@@ -733,7 +735,7 @@ Třída sezení historie SessionHistory obsahuje metody pro přidávání zázna
 
 \begin{enumerate}
   \item Zjištění, zda navigovaný záznam obsahuje objekt dokumentu. Pokud není dokument obsažen a my si přejeme posunout na tuto pozici v historii, musí se dokument obnovit zavoláním metody update() daného navigačního kontroleru.
-  \item Aktualizace uživatelského kontextu – uchování např. pozic posuvníků.
+  \item Aktualizace uživatelského kontextu -- uchování např. pozic posuvníků.
   \item Odstranění všech úloh, které by byly po průchodu historií neplatné.
   \item Nastavení nového aktivního záznamu historie sezení.
   \item Generování události load, pokud je dokument kompletní.
@@ -754,7 +756,7 @@ Pro zpřístupnění procházení historie z kódu klientského JavaScriptu bylo
   \end{center}
 \end{figure}
 
-Sjednocenou historii sezení vlastní procházecí jednotka. V implementaci je představována třídou JointSessionHistory. Třída vnitřně registruje BrowsingContextListener a SessionHistoryListener nad všemi procházecími kontexty a historiemi sezení procházecí jednotky. Nasloucháním odpovídajících událostí získává neustálé informace o změnách historie, čímž se může sama sebe aktualizovat – vytvářet sjednocenou historii. Reference na implementaci rozhraní History, jež zpřístupňuje sjednocenou historii z kódu JavaScriptu, se nachází v dokumentu. Kromě procházení společné historie sezení, rozhraní History umožňuje uchovávat stavový objekt state. Nový stavový objekt můžeme uložit pomocí speciální metody pushState(), která daný objekt nastavuje v aktuálním záznamu historie sezení. Když procházíme historií, je tento stavový objekt vždy z vybraného záznamu historie přečten a nastaven do atributu state rozhraní History.
+Sjednocenou historii sezení vlastní procházecí jednotka. V implementaci je představována třídou JointSessionHistory. Třída vnitřně registruje BrowsingContextListener a SessionHistoryListener nad všemi procházecími kontexty a historiemi sezení procházecí jednotky. Nasloucháním odpovídajících událostí získává neustálé informace o změnách historie, čímž se může sama sebe aktualizovat -- vytvářet sjednocenou historii. Reference na implementaci rozhraní History, jež zpřístupňuje sjednocenou historii z kódu JavaScriptu, se nachází v dokumentu. Kromě procházení společné historie sezení, rozhraní History umožňuje uchovávat stavový objekt state. Nový stavový objekt můžeme uložit pomocí speciální metody pushState(), která daný objekt nastavuje v aktuálním záznamu historie sezení. Když procházíme historií, je tento stavový objekt vždy z vybraného záznamu historie přečten a nastaven do atributu state rozhraní History.
 
 \begin{figure}[H]
   \begin{center}
@@ -765,6 +767,524 @@ Sjednocenou historii sezení vlastní procházecí jednotka. V implementaci je p
     \label{Figure.History}
   \end{center}
 \end{figure}
+
+\subsection{Dokument a jeho parsování}
+\label{Chapter.Implementation.DocumentParsing}
+
+Ačkoliv implementace rozhraní dokumentu viditelného z klientského JavaScriptu nebyla cílem této práce, bylo zapotřebí implementovat jeho vnitřní reprezentaci v kontextu jádra uživatelského agenta. V dokumentu jsou totiž uchovávány reference na implementovaná rozhraní Window, Location a History. Zároveň bylo nutno v dokumentu definovat vytváření elementů \texttt{<iframe>} a \texttt{<script>} tak, aby jejich implementace odpovídala specifikaci HTML 5. Třída, která reprezentuje implementaci dokumentu je nazvána Html5DocumentImpl a znázorněna na obrázku XY. 
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-dom-Html5DocumentImpl.pdf}
+    }
+    \caption{Diagram tříd znázorňující třídu dokumentu}
+    \label{Figure.DocumentImpl}
+  \end{center}
+\end{figure}
+
+Dokument dědí z HTMLDocumentImpl a může být asociován s procházecím kontextem nebo parserem, který daný dokument vytvořil. Všechny procházené dokumenty musí mít vždy přidělený procházecí kontext. Zatímco dokument, který byl vytvořen zavoláním metody createDocument() v rámci provádění skriptu, žádnou referenci na procházecí kontext nevlastní. Stav dokumentu, ve kterých se může nacházet, je dán atributem výčtu DocumentReadyState:
+
+\begin{itemize}
+  \item \textbf{\texttt{LOADING}} -- dokument je načítán parserem;
+  \item \textbf{\texttt{INTERACTIVE}} -- parser dokončil dokument, ale stále se čeká na některé zdroje;
+  \item \textbf{\texttt{COMPLETE}} -- dokument je zcela kompletně načten.
+\end{itemize}
+
+V dokumentu byly implementovány základní sandbox aspekty. Akce, které sandbox omezuje pro daný dokument, jsou uvedeny množinou sandbox přepínačů SandboxingFlag. 
+
+Během navigace nového dokumentu, jsou nové dokumenty vytvářeny v rámci zpracovávání obsahu zdroje (kap. XY), konkrétně zavoláním statické metody createDocument() nad dokumentem. Během konstrukce dokumentu vznikají nové instance rozhraní Location a History, které dokument nadále drží ve svém vlastnictví. Pokud byla metoda createDocument() zavolána s recyklovaným dokumentem recycleDocument, je pro nastavení reference Window objektu využit Window objekt recyklovaného dokumentu. Když není recyklovaný dokument nastaven, v rámci konstrukce se vytváří zcela nová instance Window objektu. Jakmile je nový dokument vytvořen, následuje jeho předání parseru, který zajistí jeho kompletní načtení.
+
+Implementaci parseru dokumentu představuje třída ScriptableDocumentParser (obrázek XY). Parsování se vyvolá zavoláním metody parse(), které se předá referenční objekt dokumentu a vstupní stream s dokumentem. Instance dokumentu není vytvářena parserem, dokument je pouze parserem sestavován a nikoliv instanciován. Třída ScriptableDocumentParser reprezentuje vnější rozhraní pro komunikaci s parserem, přičemž parsování neimplementuje. Oddělení od parseru bylo zvoleno z důvodu případné budoucí změny parseru dokumentů na některý jiný, který by více vyhovoval specifikům HTML5. V současnosti je parsování zajištěno modifikovaným NekoHTML parserem ScriptDOMParser, který přidává podporu pro vytváření vnořených procházecích kontextů pro \texttt{<iframe>} elementy a spuštění skriptů v rámci parsování dokumentu, jak to vyplývá z HTML5 specifikace. 
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-parser-Html5DocumentParser.pdf}
+    }
+    \caption{Diagram tříd znázorňující třídu parseru dokumentu}
+    \label{Figure.DocumentParser}
+  \end{center}
+\end{figure}
+
+Podle specifikace by měl být parser inkrementální a reentrantní. Měla by být též implementována možnost jeho pozastavení, kde by byl kontext vrácen událostní smyčce na zpracování některé jiné úlohy. Pozastavení parseru je potřeba např. při dokončení parsování skriptu, který by měl být spuštěn v pořadí , a při blokování jiným nevykonaným skriptem. Skript může způsobit blokování dalšího skriptu, pokud nebyl stále spuštěn, např. z důvodu, že nebyl dosud stažen ze zdroje. V této situaci musíme parser pozastavit a počkat do té doby, dokud není zcela vykonán skript, který byl v pořadí před právě zpracovaným skriptem. Pozastavení parseru by se obvykle řešilo rotací událostní smyčky. Z důvodu nemožnosti rekonstrukce zásobníku volání NekoHTML parseru bylo pozastavení řešeno vyčleněním parseru do vlastního vlákna a jeho uspáním.
+
+Třída Html5DocumentParser v současnosti uchovává referenci na skript, který bude blokovat parsování dokumentu, pokud bude zapotřebí spustit některý další skript v pořadí. V třídě jsou také listy skriptů:
+
+\begin{itemize}
+  \item \textbf{\texttt{onFinishScripts}} -- skripty, které se mají spustit po dokončení parsování;
+  \item \textbf{\texttt{inOrderASAPScripts}} -- skripty k okamžitému spuštění jakmile budou dostupné ve správném pořadí, tak jak byly umístěny v DOM;
+  \item \textbf{\texttt{asapScripts}} -- skripty k okamžitému spuštění jakmile budou dostupné. 
+\end{itemize}
+
+Když parser ScriptDOMParser dokončí parsování dokumentu, je třídou Html5DocumentParser vložena do událostní fronty úloha TheEndTask, čímž se navrátí řízení z asynchronního parsování opět událostní smyčce. Úloha nastaví stav dokumentu na INTERACTIVE, vykoná všechny skripty z listu onFihishScripts, vyvolá událost DOMContentLoaded nad parsovaným dokumentem a čeká, dokud nejsou vyprázdněny zbývající listy se skripty -- inOrderASAPScripts a asapScripts. Po vykonání všech skriptů dojde k nastavení stavu dokumentu na COMPLETE a vyvolání události load nad daným dokumentem. 
+
+\subsection{Rozhraní Window}
+\label{Chapter.Implementation.WindowInterface}
+
+V kapitole XY jsme uvedli interní implementaci dokumentu, která obsahovala instance rozhraní History a Location -- viditelných rohraní z klientského JavaScriptu. Zatím jsme ovšem nedefinovali, v rámci jakého rozhraní by měly být viděny právě tyto instance. V JavaScriptu pro zpřístupnění těchto rozhraní slouží globální objekt Window.
+
+V implementaci je objekt Window implementován třídou Window. Instance nebo reference v případě recyklace objektu Window vzniká během konstrukce dokumentu. Implementovaná množina operací a atributů, s vynecháním atributů uživatelského rozhraní, je znázorněna na obrázku XY. 
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-window-Window.pdf}
+    }
+    \caption{Diagram tříd znázorňující rozhraní Window}
+    \label{Figure.WindowInterface}
+  \end{center}
+\end{figure}
+
+Objekt Window využívá plně jádra uživatelského agenta, a tak jeho implementace je minimální. Atributy window, self, frames vrací WindowProxy objekt procházecího kontextu dokumentu, který tento Window objekt vlastní. Atribut parent vrací WindowProxy objekt rodičovského procházecího kontextu a atribut top WindowProxy objekt kontextu na nejvyšší úrovni. Jedná-li se o Window objekt vnořeného procházecího kontextu IFrameBrowsingContext, vrací atribut frameElement element, přes který byl tento vnořený procházecí kontext vytvořen. Když je objekt Window vlastněn pomocným procházecím kontextem AuxiliaryBrowsingContext, atribut opener vrací objekt WindowProxy procházecího kontextu, který pomocný procházecí kontext otevřel. Atributy location a history přímo vrací aktuální instanci těchto rozhraní z dokumentu, který objekt Window vlastní. Metoda close() ruší procházecí kontext asociovaného dokumentu zavoláním metody discard(). Metoda open() naviguje nové dokumenty s využitím navigačního kontroleru NavigationController procházecího kontextu objektu Window. Metoda stop() ruší všechny požadavky na navigace. Poslední metody pro zobrazení uživatelských dialogů volají korespondující metody v asociovaném procházecím kontextu. 
+
+V objektu Window byly implementovány všechny položky rozhraní GlobalEventHandlers a WindowEventHandlers, které přidávají podporu pro snadnou registraci obslužné rutiny pouhým přiřazením callback funkce do atributu bez potřeby voláni metody addEventListner(). Objekt Window implementuje také rozhraní ObjectGetter, které slouží pro získávání objektů WindowProxy vnořených procházecích kontextů podle jejich jména nebo indexu. Indexem rozumíme pořadové číslo 0..n, kde n počet všech procházecích vnořených kontextů určený položkou length.
+
+V předchozím textu jsme se bavili několikrát o WindowProxy objektu. Tímto objektem myslíme instanci, která má totožné chování jako aktuální globální objekt Window s tím rozdílem, že není asociována pevně s nastaveným dokumentem. Dokument objektu WindowProxy je proměnný v závislosti na tom, který je právě v daném procházecím kontextu WindowProxy objektu aktivní. 
+
+\subsection{DOM události}
+\label{Chapter.Implementation.DOMEvents}
+
+Všechny uzly objektového modelu dokumentu by měly umožňovat generování událostí. Aby byla tato funkčnost splněna, musí uzly implementovat rozhraní EventTarget. Jelikož dokument Html5DocumentImpl dědí z třídy DocumentImpl knihovny Xerces, nebylo nutno generování událostí pro dokument řešit. Knihovna Xerces totiž rozhraní EventTarget implementuje pro všechny uzly dokumentu. V klientském JavaScriptu ovšem není kořenem DOMu samotný dokument, jak je implementováno v Xerces, nýbrž objekt Window. Z tohoto důvodu bylo zapotřebí řešit provázání s objektem Window a generování událostí i do nového kořenového objektu, jak je znázorněno na obrázku XY. 
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/events.pdf}
+    }
+    \caption{Ilustrace toku události z objektu Window do objektu dokumentu}
+    \label{Figure.EventWindowDocument}
+  \end{center}
+\end{figure}
+
+Generování událostí probíhá zavoláním metody dispatchEvent() rozhraní EventTarget nad jakýmkoliv uzlem, který toto rozhraní implementuje. V implementaci Xerces jsou všechny události, které jsou předány metodě dispatchEvent(), dále delegovány chráněné metodě dokumentu dispatchEvent(), která požadované generování událostí implementuje. Jednotné místo v dokumentu pro generování událostí umožnilo snadnou změnu mechanismu generování událostí. Po provedené úpravě se dokument chová tak, jakoby byl kořenovým uzlem pro generování událostí Window objekt.
+
+Během generování událostí v přizpůsobeném modelu mohou nyní nastat dvě situace. První situace je, pokud bylo zavoláno dispatchEvent() nad objektem Window. V tomto momentě se okamžitě volají všichni zaregistrovaní odběratelé dané události, přičemž fáze CAPTURE a BUBBLE se neprovádí, jelikož se jedná o kořenový uzel. Druhá situace již obnáší změnu zmíněné chráněné metody dispatchEvent(). Situace vzniká po zavolání dispatchEvent() nad některým uzlem dokumentu. V tomto případě se provádí následující kroky:
+
+\begin{enumerate}
+  \item Zavolání metody dispatchEventFromDocument() nad objektem Window, ve které se obslouží CAPTURE fáze. 
+  \item Zavolání původní implementace dispatchEvent(), která zajistí propagaci události až do daného cíle a její návrat zpět do dokumentu. 
+  \item Opětovné zavolání dispatchEventFromDocument(), tentokrát pro obsloužení BUBBLE fáze.
+\end{enumerate}
+
+Elementy DOMu, ale i objekt Window v klientském JavaScriptu neimplementují pouze rozhraní EventTarget, ale přidávají i vhodně pojmenované atributy, jejichž setter zajistí registraci nastavené událostní obslužné rutiny jako odběratele v daném objektu. Elementy implementují rozhraní s množinou atributů událostních obslužných rutin GlobalEventHandlers. Objekt Window implementuje dále rozhraní WindowEventHandlers.
+
+Událostní obslužné rutiny musí v programu implementovat EventHandler, který jako rozhraní EventListener obsahuje pouze jednu metodu pro obsloužení dané události. Při nastavování obslužných rutin do korespondujících atributů událostních obslužných rutin rozhraní GlobalEventHandlers nebo WindowEventHandlers musela být řešena odregistrace odběratele staré obslužné rutiny a registrace nového odběratele nové obslužné rutiny. Za tímto účelem byla vytvořena třída EventHandlerEventListener, která automaticky registruje a odebírá událostní obslužné rutiny u některého cíle implementujícího EventTarget. (obr XY)
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-dom-events-EventHandlerEventListener.pdf}
+    }
+    \caption{Diagram tříd znázorňující implementaci registrování objektu EventHandler}
+    \label{Figure.EventHandlerEventListener}
+  \end{center}
+\end{figure}
+
+V současnosti jsou jádrem prohlížeče generovány události uvedené v následující tabulce XY.
+
+\begin{table}[H]
+  \begin{center} 
+    \begin{tabular}{|l|p{5cm}|P{6cm}|} \hline
+    \theadStart{Třída události} & \thead{Popis třídy} & \thead{Typy událostí} \\ \hline
+    \texttt{Event} & jednoduché události neobsahující žádné další informace kromě názvu události & \texttt{load}, \texttt{beforescriptexecute}, \mbox{\texttt{unload}}, \texttt{afterscriptexecute}, \texttt{abort}, \texttt{DOMContentLoaded} \\ \hline
+    \texttt{PopStateEvent} & událost změny uloženého stavu ve společné historii sezení & \texttt{popstate} \\ \hline
+    \texttt{HashChangeEvent} & událost změny fragmentu v~URL prohlížené stránky & \texttt{hashchange} \\ \hline
+    \texttt{ErrorEvent} & událost reprezentující chybu & \texttt{error} \\ \hline
+    \texttt{MouseEvent} & události vyvolané ukazatelem myši & \texttt{mouseover}, \texttt{mousedown}, \texttt{mouseup}, \texttt{click}, \texttt{dblclick} \\ \hline
+    \end{tabular}
+    \caption{Třídy podporovaných událostí}
+    \label{Table.SupportedEvents}
+  \end{center}
+\end{table}
+
+\subsection{Rozhraní URLUtils a URL}
+\label{Chapter.Implementation.URLUtilsInterface}
+
+Pro zkompletování výkladu všech rozhraní, která jsou v současné implementaci viditelná z klientského JavaScriptu nám chybí uvést poslední rozhraní URL, jež čerpá z dalšího rozhraní URLUtils. Rozhraní URLUtils není použité pouze pro objekty URL, ale i pro objekt Location. Ve své implementaci URLUtils rozhraní obaluje vstupní řetězec s URL adresou -- input, který dále vnitřně parsuje za pomocí parseru URLParser, čímž vzniká objekt url třídy ParserURL (obrázek XY). Zpracovaná adresa ParserURL poskytuje náležitými gettery možnost získávání jednotlivých komponent URL adresy, které jsou přístupné právě přes URLUtils rozhraní. 
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-url-URL.pdf}
+    }
+    \caption{Diagram tříd znázorňující implementované rozhraní URL}
+    \label{Figure.URLInterface}
+  \end{center}
+\end{figure}
+
+Parser ParserURL vnitřně používá BasicURLParser, který zajišťuje náležité parsování předaného URL řetězce. Jelikož tvorba parseru nebyla cílem této práce, BasicURLParser nevytváří nový ParserURL objekt podle referenčního algoritmu tak, jak bylo uvedeno ve specifikaci. BasicURLParser pouze využívá již implementovaného parsovacího mechanismu v balíku java.net a třídy URL, jejíž objekt parsováním vznikne. Objekt třídy URL se obaluje do ParserURL rozhraní, což je zajištěno adaptující třídou WrappedURL.
+
+Rozhraní URL vůči rozhraní URLUtils nepřidává žádnou další funkcionalitu, ale pouze definuje konstruktor pro tvorbu URL adresy, kterou objekt zapouzdřuje.
+
+\section{Scriptovací architektura pro dokumenty}
+\label{Chapter.Implementation.ScriptingArchitecture}
+
+Do HTML dokumentů mohou být vkládány klientské skripty různých skriptovacích jazyků dle rozebrané problematiky v návrhu -- kapitole XY. Abychom umožnili snadnou implementaci klientských skriptovacích enginů pro různé skriptovací enginy, bylo nutné vytvořit základní abstraktní architekturu, která bude pro všechny skriptovací enginy společná. 
+
+V této kapitole popíšeme implementaci abstraktního skriptovacího enginu a architekturu vytváření nativních objektů Javy tak, aby mohly být exportovány do klientských skriptů. Fundamentální implementace této architektury se nachází v balíku org.fit.cssbox.scriptbox.script. 
+
+Architektura pro skriptací enginy vychází z kapitoly návrhu. Architektura byla v některých problematických částech mírně upravena tak, aby věrohodně kopírovala specifikaci HTML 5. Nejzásadnější změnou vůči návrhu je způsob spouštění skriptů. Skripty nejsou spouštěny pomocí jednotné třídy DocumentScriptEngine (kapitola XY), která eviduje všechny skriptovací enginy, asociuje je pro dané dokumenty a implementuje veškerou funkcionalitu pro jejich spouštění. Z důvodu prevence proti případné nekompatibilitě s danou specifikací, umožnění její snadnější a přesnější interpretace, bylo implementováno decentralizované spouštění skriptů. Odkaz na skriptovací engine není vlastněn globální instancí spravující třídy DocumentScriptEngine, ale dokumentem samotným ve speciálním objektu ScriptSettings (viz kapitola XY).
+
+Implementované řešení provádění skriptů v dokumentu je popsáno v kapitole XY. Injekce objektů do hlavního scopu (kapitola XY) byla zcela implementována bez odlišností od návrhu, je rozebrána v kapitole XY. Tvorba JavaScript enginu podle JSR 223 (kapitola XY) byla též kompletně dodržena. Rhino engine byl v mnoha ohledech přizpůsoben a vylepšen tak, aby ho bylo možné využít pro klientské skripty. O implementovaném řešení JavaScript enginu pojednává kapitola XY.
+
+\subsection{Rozhraní skriptů dokumentu}
+\label{Chapter.Implementation.ScriptInterface}
+
+Podle specifikace HTML5 bylo zapotřebí implementovat společné rozhraní pro skripty dokumentu. Rozhraní pro skripty je v implementaci reprezentováno abstraktní třídou Script. Každý skript využívá pro svoji tvorbu a běh určitého nastavení daného abstraktní třídou ScriptSettings. 
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-script-Script.pdf}
+    }
+    \caption{Diagram tříd znázorňující implementované rozhraní skriptu}
+    \label{Figure.ScriptInterface}
+  \end{center}
+\end{figure}
+
+Nastavení pro skripty deklaruje důležité aspekty prostředí, ve kterém by se měl skript vykonat. Třída ScriptSettings je abstraktní a v současné implementaci ji realizuje třída WindowScriptSettings. Instance nastavení je vytvářena vždy během konstrukce objektu Window, který je zároveň globálním objektem pro JavaScriptový engine. Třída WindowScriptEngine poskytuje referenci zejména na:
+
+\begin{itemize}
+  \item dokument, ve kterém se nachází spuštěný skript;
+  \item globální objekt Window;
+  \item bázovou URL adresu, která bude použita pro vytváření URL adres z adres relativních;
+  \item událostní smyčku určenou pro skripty
+  \item původ skriptu Origin, jeho kódování, atd. 
+\end{itemize}
+
+Jelikož nastavení pro skripty je unikátní pro každý objekt Window, který je přímo v 1:1 asociaci s objektem dokumentu, bylo nastavení využito pro tvorbu a uchovávání skriptovacích enginů dokumentu. Skriptovací enginy lze vytvářet zavoláním metody getExecutionEnviroment(). Jakmile je skriptovací engine již jednou vytvořen, je v konkrétním nastavení uchován a během příštího dotazu opět navrácen. Při vytváření neustále nových skriptovacích enginů by docházelo ke ztrátě uchovaného kontextu uvnitř enginů.
+
+Abstraktní třída pro skripty Script potřebuje pro svoji konstrukci zdroj skriptu Source, jazyk skriptu, URL ze které byl případně skript získán, nastavení pro skripty ScriptSettingsType. V rámci tvorby instance skriptu se skript ihned provede zavoláním chráněné metody createScript(). Způsob spuštění skriptu je znázorněn na obrázku XY. Jakmile se ověří, zda je skriptování povoleno, dojde nejprve k získání skriptovacího enginu metodou obtainExecutionEnviroment(). Pak dojde k přípravě skriptu a získání vstupního bodu k vykonání CondeEntryPoint metodou obtainCodeEntryPoint(), který je vykonán metodou jumpToCodeEntryPoint(). Vykonávací metoda před spuštěním skriptu vkládá před spuštěním skriptu na zásobník ScriptSettingsStack aktuální nastavení skriptu, jež je po skončení vykonávání opět ze zásobníku odstraněno. Zásobník skriptů je potřebný v některých situacích, např. když chceme znát některé základní informace o nastavení skriptu, který spustil některou funkci jádra uživatelského agenta. Během navigování stránek metodou open() objektu Window se využívá zásobníku k určení zdrojového procházecího kontextu, který je totožný s responsivním procházecím kontextem skriptu.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/create-script.pdf}
+    }
+    \caption{Sekvenční diagram znázorňující tvorbu skriptu}
+    \label{Figure.CreateScript}
+  \end{center}
+\end{figure}
+
+Jedinými konkrétními třídami abstraktní třídy Script jsou třídy EvalWindowScript a InvokeWindowScript. Obě zmíněné třídy rozšiřují třídu WindowScript, jež předefinovává metodu prepareRunCallback(), do které přidává test, zda je dokument objektu Window plně aktivní. Pokud není dokument aktivní, vrací metoda nepravdu a skript není spuštěn.
+
+Třída EvalWindowScript slouží k prostému vykonávání spustitelného kódu v nalezeném skriptovacím enginu. Zdrojem pro skripty EvalWindowScript je Reader. Během tvorby vstupního bodu CodeEntryPoint se vrací buď předaný zdroj skriptu, tzn. Reader, nebo zkompilovaný zdroj CompiledScript. Při vykonávání skriptu se volá buď eval() skriptovacího enginu nebo eval() zkompilovaného skriptu v závislosti na tom, jaký vstupní bod byl metodě executeCodeEntryPoint() předán.
+
+Třída InvokeWindowScript plní funkci přímého volání funkcí v kontextu skriptovacího enginu. Zdrojem skriptu je rozhraní FunctionInvocation, které informuje o názvu funkce a argumentech, se kterými byla zavolána. Metoda vykonávání skriptu volá metodu invoke() vybraného skriptacího enginu s parametry, které byly získány pomocí rozhraní FunctionInvocation.
+
+\subsection{Klientské skriptovací enginy}
+\label{Chapter.Implementation.ScriptEngines}
+
+Abstraktní skriptovací engine pro provádění skriptů popsaných v předchozí kapitole byl implementován podle návrhu tak, aby byl kompatibilní se specifikací JSR 223. Abstraktní engine dědí z třídy AbstractScriptEngine určené pro všechny skriptovací enginy standardního skriptovacího API. V implementaci je reprezentován třídou BrowserScriptEngine (obrázek \ref{Figure.BrowserScriptEngine}).
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-script-BrowserScriptEngine.pdf}
+    }
+    \caption{Diagram tříd znázorňující abstraktní skriptovací engine}
+    \label{Figure.BrowserScriptEngine}
+  \end{center}
+\end{figure}
+
+Všechny skriptovací enginy jsou vytvářeny pro některý konkrétní dokument, nad nímž je skriptovacím enginem uchováván skriptovací kontext. Pro jaký dokument byl skriptovací engine vytvořen, lze zjistit z nastavení pro skripty ScriptSettings, které je předáváno abstraktnímu skriptovacímu enginu během jeho konstrukce. V rámci třídy BrowserScriptEngine se s objektem ScriptSettings přímo nepracuje, ale v dalších specifičtějších třídách je dále využíván pro zjišťování globálního objektu. Globální objekt bývá obvykle konkrétními skriptovacími enginy implementován do enginového scopu daného skriptovacího enginu. Konkrétně třída WindowScriptEngine reprezentuje rozhraní pro zabudování globálního objektu Window.
+
+Každý skriptovací engine obsahuje referenci na továrnu resolverů členů tříd ClassMembersResolverFactory. Resolver je použit k určení viditelných členů exportovaných objektů Javy pro implementaci globálního objektu a blíže je popsán v následující kapitole \ref{Chapter.Implementation.ExportConcepts}. 
+
+Skriptovací enginy jsou vytvářeny továrnami BrowserScriptEngineFactory, které jsou evidovány a registrovány v singleton třídě BrowserScriptEngineManager. Manažerská třída všechny továrny skriptovacích enginů spravuje. Na dotázání je poskytuje vnějšímu okolí nebo případně ihned vytváří konkrétní skriptovací enginy některé továrny. Třídy BrowserScriptEngineFactory a BrowserScriptEngineManager rozšiřují třídy pro spravování továren obsahů v závislosti na MIME typu obsahu, které byly blíže popsány v kapitole \ref{Chapter.Implementation.ContentHandling}. Rozhodujícím faktorem pro vybrání odpovídající továrny skriptovacího enginu je MIME typ skriptu, na jehož základě je v manažeru továren skriptovacích enginů vyhledáváno.
+
+\subsection{Koncepty exportu objektů Javy}
+\label{Chapter.Implementation.ExportConcepts}
+
+Z důvodu snadného přidávání nové implementace klientských skriptovacích enginů byly implementovány koncepty exportu nativních objektů Javy do kontextů skriptovacích enginů. Když chceme exportovat objekt, je výhodné vědět a určit, které prvky objektu mají být exportovány a jak by tyto prvky měly být reprezentovány v klientských skriptovacích enginech. Prvky zde myslíme členy třídy -- atributy, metody nebo konstruktory třídy. Za účelem specifikace exportovatelných členů tříd vznikla podpora, která přesně vyčleňuje jednotlivé členy tříd. Exportovatelné členy jsou vyhodnocovány ve třídách rozšiřující abstraktní třídu ClassMembers. Výchozí a jediná implementace pro určování členů tříd je hotova ve třídě DefaultClassMembers. Abstraktní třída ClassMembers vlastní odkaz na třídu, jejíž členy jsou vyhodnocovány, a odkaz na resolver, který jednotlivé členy rozpoznává. 
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-script-reflect-ClassMembers.pdf}
+    }
+    \caption{Diagram tříd znázorňující třídu reprezentující členy tříd}
+    \label{Figure.ClassMembers}
+  \end{center}
+\end{figure}
+
+Třídy resolverů slouží náležitou implementací metod začínajících prefixem is...() k určení, zda má být Java člen exportován nebo nikoliv. Pokud je člen exportovatelný, pak resolvery zprostředkovávají i extrakci názvů členů, pod kterými jsou členy viditelné v klientských skriptech. Pro účel extrakce jsou vyčleněny metody začínající prefixem extract…(). Závěrem resolvery vytváří metodami s prefixem construct…() obaly exportovatelných standardních Java členů -- členů Constructor, Field a Method. Poslední metodou, kterou poskytují resolvery, je metoda testu isObjectGetter() ověřující, zda je předaná metoda metodou pro indexované získávání objektů z objektu zkoumané třídy. Asociativní získávání objektů z objektu, neboli vytvoření asociativního pole z objektu, bylo implementováno z důvodu potřeby indexovaného získávání objektů WindowProxy vnořených procházecích kontextů z objektu Window podle jejich jména nebo indexu. Výchozí resolver DefaultClassMembersResolver exportuje všechny členy tříd Javy, přičemž jejich názvy extrahuje pomocí reflexe.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-script-reflect-ClassMember.pdf}
+    }
+    \caption{Diagram tříd znázorňující třídy členů}
+    \label{Figure.ClassMember}
+  \end{center}
+\end{figure}
+
+Pro rozšíření funkčnosti standardních Java členů byly vytvořeny obalující třídy ClassFunction, ClassConstructor a ClassField tak, jak je znázorněno na obrázku \ref{Figure.ClassMember}. Obaly Java členů přidávají metody pomocné metody pro export a hlavně obsahují odkaz na pole možností options, které specifikuje způsob, jak by měl být člen implementován v klientském skriptu. V současné implementaci je možno uchovávat možnosti:
+
+\begin{itemize}
+  \item \textbf{\texttt{ENUMERABLE}} -- slouží pro určení, zda člen bude zúčastněn v seznamu všech výčtových členů objektu. V JavaScriptu umožňuje povolit nebo zabránit výpisu vlastnosti objektu, např. při průchodu for (var property in object). Tato možnost reflektuje ECMAScript atribut [[Enumerable]].
+  \item \textbf{\texttt{PERNAMENT}} -- zda člen bude natrvalo svázán s objektem, v němž je definován, nebo může být přepsán během vykonávání skriptu za uživatelský objekt. Tato možnost zjednodušeně reflektuje Web IDL atributy [Unforgeable] a [Replaceable].
+\end{itemize}
+
+Z důvodu uchovávání a svázání členů tříd s objekty, které byly exportovány, byly implementovány třídy členů objektů: ObjectFunction, ObjectConstructor, ObjectField. Tyto třídy, jako třídy členů tříd, implementují rozhraní FunctionMember, ConstructorMember a FieldMember. Strom dědičnosti tříd členů objektů je obdobný jako u členů tříd. Objekty členů navíc od objektů členů uchovávají instanci exportovaného objektu, ale implementačně se od tříd členů tříd příliš neliší, proto zde nebudou blíže popisovány.
+
+\subsection{Export objektů založený na anotacích}
+\label{Chapter.Implementation.AnnotationExportConcepts}
+
+Systém exportu objektů Javy s výchozí implementací resolveru členů třídy DefaultClassMembersResolver, popsaný v předchozí kapitole \ref{Chapter.Implementation.ExportConcepts}, umožňoval kompletní export objektů do klientských skriptů. Kompletní export není ovšem téměř nikdy žádoucí, jelikož do exportu jsou zahrnuty i např. metody třídy Object, ze které dědí každá třída Javy. Velmi často se prolíná vnitřní implementace členů objektu pro export a implementace členů, který by měly být ve skutečnosti exportovány. Nastala otázka, jak jednotlivé členy odlišit. Řešení se nabídlo v anotacích Javy, díky kterým bylo možné přesně určit exportovatelné členy a rozšířit exportování o další přídavné funkčnosti.
+
+Pro export založený na anotacích členů tříd byl vytvořen nový resolver členů implementovaný třídou ScriptAnnotationClassMembersResolver. Resolver pro svoji funkci potřebuje referenci na skriptovací engine, který provádí vyhodnocování členů tříd. Bez znalosti skriptovacího enginu bychom nemohli rozhodnout, zda je daný člen exportovatelný pro konkrétní skriptovací engine. Pokud by bylo žádoucí exportování stejných členů do všech skriptovacích enginů a nemít možnost volby skriptovacího enginu, pro který je export validní, pak by reference na skriptovací engine nemusela existovat. Třída resolveru obsahuje ještě referenci na objekt Shutter, který zde neslouží k restrikci přístupu pro určité členy, třídy a balíčky, nýbrž k explicitnímu povolování členů, které nenesou žádnou anotaci. Pro implementaci funkčnosti třídy resolveru se využívá vnitřně pomocné třídy ScriptAnnotation, ve které se nachází pouze statické metody. Metody pomáhají určit, zda je daný člen exportovatelný na základě anotací pro daný skriptovací engine.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-script-annotation-ScriptAnnotationClassMembersResolver.pdf}
+    }
+    \caption{Diagram tříd znázorňující resolver členů tříd založený na anotacích}
+    \label{Figure.AnnotationClassMembersResolver}
+  \end{center}
+\end{figure}
+
+V současné implementaci jsou podporovány skriptovací anotace pro členy třídy a třídy uvedené v  tabulce \ref{Table.SupportedEvents}.
+
+\begin{table}[H]
+  \begin{center} 
+    \begin{tabular}{|p{4cm}|p{2cm}|p{8cm}|} \hline
+    \theadStart{Anotace} & \thead{Působnost anotace} & \thead{Popis funkce anotace} \\ \hline
+    \texttt{@InvisibleField} & Atribut & Zabránění exportu atributu \\ \hline
+    \texttt{@InvisibleFunction} & Metoda & Zabránění exportu funkce\\ \hline
+    \texttt{@ScriptClass} & Třída & Anotace pro exportovatelnou třídu -- nemusí být uvedena \\ \hline
+    \texttt{@ScriptConstructor} & Konstruktor & Exportovatelný konstruktor objektu\\ \hline
+    \texttt{@ScriptField} & Atribut & Exportovatelný atribut \\ \hline
+    \texttt{@ScriptFunction} & Metoda & Exportovatelná funkce \\ \hline
+    \texttt{@ScriptGetter} & Metoda & Exportovatelný atribut na základě getter metody \\ \hline
+    \texttt{@ScriptSetter} & Metoda & Exportovatelný atribut na základě setter metody \\ \hline
+    \end{tabular}
+    \caption{Třídy podporovaných událostí}
+    \label{Table.SupportedEvents}
+  \end{center}
+\end{table}
+
+Každá skriptovací anotace obsahuje některé atributy, které omezují a ovlivňují export členů tříd. Všechny anotace mají společný jeden atribut engines s polem skriptovacích enginů, pro které je daná anotace validní. Pokud je pole engines prázdné, pak se předpokládá, že je člen s touto anotací viditelný pro všechny skriptovací enginy. 
+
+Jedinou anotací, která není určena pro členy třídy, je anotace @ScriptClass, jež se uvádí nad typem třídy. Tato anotace umožňuje definovat rozsah automatického zahrnutí exportovatelných členů třídy, bez nutnosti definování odpovídající anotace u daného členu. Anotace přidává k popsanému atributu engines další atribut s polem options. Pokud zahrneme v poli s možnostmi anotace options, např. hodnotu ALL\_METHODS, tak budou exportovány všechny metody dané třídy, nad kterou je anotace uvedena. Další podporované možnosti anotace jsou: ALL\_FIELDS, ALL\_STATIC\_METHODS, ALL\_STATIC\_FIELDS, ALL\_CONSTRUCTORS. Jedinými anotacemi, které mohou ovlivnit automatické exporty po uvedení některé možnosti anotace @ScriptClass, jsou anotace @InvisibleField a @InvisibleFunction. Tyto anotace slouží k zabránění exportu členu třídy, který by byl normálně exportován. 
+
+Když žádáme vytvoření některého atributu v klientském skriptu, máme hned tři možnosti jak toho docílit. Pro definici atributu můžeme použít anotaci @ScriptField, která přímo zpřístupní atribut, nad kterým je anotace uvedena. Dále lze použít anotací @ScriptGetter a @ScriptSetter, které vytvoří atribut z getter nebo setter metody, nad níž je anotace uvedena. Resolver pro anotace umožnuje pro všechny tři uvedené anotace automatické odvození názvu atributu. Název atributu lze předefinovat uvedením atributu anotace field, kde lze zvolit vlastní název pro atribut pro klientské skriptovací enginy. Pokud je jeden a tentýž atribut definován na více místech pomocí různých anotací, pak lze zvolit, zda by mělo mít přednost volání getteru nebo setter pro získávání atributu před přímým přístupem k atributu. Přednosti getterů a setterů se definují v možnostech anotací hodnotou FIELD\_GET\_OVERRIDE nebo FIELD\_SET\_OVERRIDE. Chceme-li zahrnout metody getterů a setterů do exportovatelných funkcí, pak lze v možnostech uvést hodnotu CALLABLE\_GETTER, CALLABLE\_SETTER.
+
+U všech výše uvedených anotací, které sloužily pro export členu třídy, lze také zvolit, zda by tento člen měl mít nastavenou vlastnost ENUMERABLE popsanou v kapitole \ref{Chapter.Implementation.ExportConcepts}. Vlastnost PERNAMENT nelze v současné implementaci nastavovat. Proto všechny členy exportované pomocí skriptovacích anotací mají pevně nastavenou vlastností PERNAMENT.
+
+\subsection{Další implementovaná funkčnost}
+\label{Chapter.Implementation.OtherFunctionality}
+
+V kapitole \ref{Chapter.Design.GlobalScopeInjections} jsme navrhli injekci do hlavního scopu. Koncept injekce byl zcela dodržen tak, jak byl navržen. Jednotlivé injektory ScriptContextInjector po zavolání metody registerScriptContextInject() registrují automaticky injekci, kterou v sobě nesou u všech továren skriptovacích enginů, ke kterým injektory náleží. Přejeme-li si zaregistrovat injektor u všech zaregistrovaných továren skriptovacích enginů, tak stačí během konstrukce injektoru předat místo pole názvů podporovaných skriptovacích enginů konstantu  ALL\_SCRIPT\_ENGINE\_FACTORIES. V současnosti jediným implementovaným injektorem, který je společný pro všechny skriptovací enginy uživatelského agenta, je URLInjector, který vkládá objekt pro konstrukci URL do hlavního scopu všech skriptovacích enginů. Pro JavaScriptový stroj byl dále implementován injektor vkládající speciální objekty, které reprezentují třídy klientského JavaScriptu, viz kapitola \ref{Chapter.Implementation.GlobalScopeImplementation}. Posledním implementovaným injektorem je injektor vkládající objekt konzole v rámci ukázkové aplikace. 
+
+Během implementace se vyskytla potřeba převádět objekty na různá rozhraní, nejčastěji rozhraní neobsahující skriptovací anotace na objekty, které jsou již anotované a tak přístupné pro klientské skripty. Pro tento účel byl implementován jednoduchý registr adaptérů umožňující požadovanou funkčnost (obrázek \ref{Figure.AdapterRegistry}). Adaptéry jsou nyní používány třeba pro převod Xerces implementace událostí EventImpl, MouseEventImpl na třídy AdaptedEvent, AdaptedMouseEvent za pomocí adapterů EventAdapter a MouseEventAdapter. Jednotlivé skriptovací enginy by měly využívat tento registr adaptérů při zviditelňování nativních objektů Javy v klientských skriptech.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-script-adapter-Adapter.pdf}
+    }
+    \caption{Diagram tříd znázorňující registr adaptérů}
+    \label{Figure.AdapterRegistry}
+  \end{center}
+\end{figure}
+
+\section{Klientský JavaScriptový engine}
+\label{Chapter.Implementation.JavaScriptEngine}
+
+V minulých kapitolách jsme popsali obecné společné rozhraní pro všechny skriptovací enginy. V této kapitole se zaměříme na konkrétní implementaci jediného skriptovacího enginu, který je nyní podporován -- skriptovacího enginu JavaScriptu.
+
+JavaScriptový skriptovací engine byl implementován s využitím knihovny Rhino, která poskytuje jádro interpretu JavaScriptu. Implementovaný skriptovací engine je kompatibilní se specifikací JSR 223. Implementace JavaScriptového enginu podle JSR 223 v JDK nebylo využito z důvodu přizpůsobení skriptovacího enginu a kompletní kontroly nad zabudovaným prostředím Rhino. Standardní skriptovací API pro engine bylo implementováno zcela od základu. Jakým způsobem proběhlo propojením s Rhinem, je uvedeno v kapitole \ref{Chapter.Implementation.JavaScriptEngineInterface}.
+
+V rámci konstrukce skriptovacího enginu dochází k tvorbě globálního scopu. Proces, který implementuje atributy a metody globálního objektu do globálního scopu, je popsán v kapitole \ref{Chapter.Implementation.GlobalScopeImplementation}. 
+
+Knihovna Rhino exportuje nativní objekty Javy do prostředí JavaScriptu tak, že je zapouzdřuje do objektů NativeJavaObject, které implementují rozhraní Scriptable. Pro specifikaci členů objektů, které mají být implementovány, využívá Rhino třídy JavaMembers, která ovšem není veřejně přístupná. Z důvodu potřeby definice vlastních exportovatelných členů v rámci exportovaných objektů Javy, bylo nutné vytvořit vlastní zapouzdřující objekt. Jak zapouzdření proběhlo, je popsáno v kapitole \ref{Chapter.Implementation.NativeJavaWrappers}.
+
+\subsection{Rozhraní JavaScriptového enginu}
+\label{Chapter.Implementation.JavaScriptEngineInterface}
+
+Skriptovací engine JavaScriptu je vytvářen továrnou WindowJavaScriptEngineFactory. V implementaci jej představuje třída WindowJavaScriptEngine (obrázek \ref{Figure.WindowJavaScriptEngine}). Pro jedno vlákno může být vytvořen pouze jeden skriptovací engine. Omezení je dáno z důvodu, že je skriptovací engine přímo spjat s kontextem Rhina, který se vytváří pro aktuální spuštěné vlákno. Skriptovací kontext Rhina slouží pro běh skriptů a je vytvářen před spuštěním nového skriptu. K vytváření kontextu se využívá továrny JavaScriptContextFactory, která je instanciována v rámci konstrukce skriptovacího enginu. Během konstrukce enginu také dochází k vytvoření globálního scopu TopLevel, jehož tvorba je blíže popsána v následující kapitole \ref{Chapter.Implementation.GlobalScopeImplementation}.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-script-javascript-WindowJavaScriptEngine.pdf}
+    }
+    \caption{Diagram tříd znázorňující skriptovací engine JavaScriptu}
+    \label{Figure.WindowJavaScriptEngine}
+  \end{center}
+\end{figure}
+
+V rámci konstrukce továrny skriptovacího kontextu JavaScriptContextFactory se registrují jednotlivé podporované adaptéry pro skriptovací engine. Aktuálně jsou registrovány adaptéry: EventAdapter, UIEventAdapter, MouseEventAdapter a ErrorAdapter, jež převádí nativní objekty událostí na objekty viditelné ve skriptu. Když dochází k tvorbě kontextu, je pro kontext nastavena obalující továrna, která řetězí více metod obalování s využitím dekorátoru WrapFactoryDecorator blíže popsaného v kapitole \ref{Chapter.Implementation.NativeJavaWrappers}.
+
+Skriptovací engine vlastní referenci na továrnu resolverů členů tříd, která se využívá pro export nativních objektů Javy. V aktuální implementaci se využívá továrny založené na anotacích ScriptAnnotationClassMembersResolverFactory. Skriptovací engine umožňuje volat funkce pomocí rozhraní Invocable nebo kompilovat skripty do objektů CompiledJavaScript s využitím rozhraní Compilable.
+
+Abychom mohli implementovat data binding podle specifikace JSR 223, bylo nutno vytvořit speciální scope -- objekt ScripContextScriptable. Tento scope zpřístupňuje uložená data pomocí Bindings klientskému JavaScriptu a naopak z klientského JavaScriptu zprostředkovává rozhraní pro uložení dat skriptu.
+
+\subsection{Implementace globálního scopu}
+\label{Chapter.Implementation.GlobalScopeImplementation}
+
+V rámci konstrukce skriptovacího enginu dochází k tvorbě globálního scopu. Globální scope je reprezentován v Rhinu třídou TopLevel. Jelikož klientský skript obsahuje globální scope, kde je implementován objekt Window, byla vytvořena rozšiřující třída ObjectTopLevel (obrázek \ref{Figure.ObjectTopLevel}), která daný objekt do globálního scopu vkládá. Globální objekt Window je získáván skriptovacím enginem z nastavení skriptu ScriptSettings a dále předáván v rámci konstrukce třídě ObjectTopLevel.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-script-javascript-java-ObjectTopLevel.pdf}
+    }
+    \caption{Diagram tříd znázorňující objekt globálního scopu}
+    \label{Figure.ObjectTopLevel}
+  \end{center}
+\end{figure}
+
+Pro implementaci objektu do scopu využívá třída ObjectTopLevel instance implementátoru ObjectImplementor. Implementátor přijímá objekt, jenž má být implementován a členy třídy implementovaného objektu získané ze skriptovacího enginu. Implementátor tak ve skutečnosti zná všechny členy objektu ObjectMembers, které by měly být implementovány. Členy objektu jsou implementovány s využitím statických metod defineObjectField() a defineObjectFunction() třídy ObjectScriptable. Třída ObjectScriptable je nadstavbou nad ScriptableObject, která umožňuje v rámci své instance uchovat nativní objekt Javy, jenž sama zapouzdřuje. Při zavolání metody defineObjectField() vytváří objekt HostedJavaField, který následně do předaného scopu vkládá. Po zavolání metody defineObjectFunction() vytváří objekt HostedJavaMethod, který taktéž vkládá do předaného scopu. Nachází-li se v předaném scopu již jiný existující objekt HostedJavaMethod, pak je metoda ObjectFunction přidána do listu přetížených metod existujícího objektu HostedJavaMethod.
+
+Z důvodu umožnění správné funkce operátoru instanceof, nebylo nutno do globálního scopu implementovat pouze globální objekt Window, ale také všechny objekty tříd. Přidání této podpory zajistil injektor ClassObjectInjector (obrázek \ref{Figure.ClassObjectsInjector}), který všechny třídy, jež by měly být viditelné ve skriptu, převádí na objekty ClassScriptable. Objekty ClassScriptable zapouzdřují objekt třídy a předefinovávají metodu hasInstance(), která se volá při kontrole, zda je předaná instance typu, jenž zapouzdřuje objekt ClassScriptable.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-script-javascript-injectors-ClassObjectsInjector.pdf}
+    }
+    \caption{Diagram tříd znázorňující injektor globálního scopu}
+    \label{Figure.ClassObjectsInjector}
+  \end{center}
+\end{figure}
+
+Globální scope implementuje standardní objekty Javy a odstraňuje veškeré rozšiřující objekty Rhina, které by mohly narušit bezpečnost provádění skriptu, např. JavaImporter, Packages, importClass, importPackage, atd.
+
+\subsection{Zapouzdření nativních objektů Javy}
+\label{Chapter.Implementation.NativeJavaWrappers}
+
+Implementováním globálního scopu jsme získali množinu atributů a metod, které mohou navracet nativní objekty Javy uživatelskému skriptu. Skriptovací engine ovšem nativním objektům „nerozumí“ a nedokáže s nimi pracovat, protože neimplementují rozhraní Scriptable. Knihovna Rhino řeší zapouzdřování objektů pomocí obalovací továrny WrapFactory, jejíž instance je uchovávána v objekt kontextu Rhina. Implementace obalovací továrny zapouzdřuje nativní objekty do objektu NativeJavaObject.
+
+Jelikož nebylo možné ovlivnit exportovatelné členy nativních objektů, bylo nutné vytvořit novou obalující továrnu, která vytváří nový obal pro nativní objekty -- HostedJavaObject (obrázek \ref{Figure.HostedJavaObject}). Obal nativního objektu HostedJavaObject zapouzdřuje nativní objekt, k němuž lze přistoupit např. rozbalením díky rozhraní Wrapper. Na rozdíl od globálního kontextu, obal neimplementuje všechny exportovatelné členy do scopu, nýbrž vytváří pouze rozhraní pro přímý přístup do zapouzdřených nativních objektů. Obal obsahuje referenci na všechny exportovatelné členy ObjectMemers zapouzdřeného objektu a této reference využívá při potřebě získat nebo nastavit některou vlastnost zapouzdřeného objektu. Vlastnostmi zde máme na mysli i funkce zapouzdřeného objektu ObjectFunction, které předtím než je vrátíme, musí být obaleny do objektu HostedJavaMethod. Kromě zajištění rozhraní Scriptable rozšířením třídy ObjectScriptable, obal HostedJavaObject implementuje také rozhraní Function. Rozhraní Function je implementováno za účelem umožnění volání exportovatelných konstruktorů zapouzdřeného objektu. Při volání operátoru new dochází k volání metody construct(), které je obsaženo právě v rozhraní Function.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-script-javascript-java-HostedJavaObject.pdf}
+    }
+    \caption{Diagram tříd znázorňující zapouzdřující objekt nativních objektů Javy}
+    \label{Figure.HostedJavaObject}
+  \end{center}
+\end{figure}
+
+Obalující objekt HostedJavaMethod rozšiřuje funkční objekt FunctionObject a umožňuje uchovávat všechny přetížené metody, jež tento objekt představuje. Z důvodu volání přetížených metod, byla předefinována metoda call(), která se provádí při volání funkce. Při invokaci funkce dochází nejprve k vyhledání metody v listu přetížených metod a pak k zavolání vybrané metody. Bylo implementováno jednoduché vyhledávání metodou getNearestObjectFunction(), která vyhledává funkce na základě počtu argumentů a jejich typů. Vyhledávání počítá i s možností volání metod s proměnnými argumenty.
+
+Při nastavování nativních objektů JavaScriptu do některých rozhraní jádra uživatelského agenta, se naskytla potřeba některé tyto nativní objekty obalovat. V diagramu na obrázku \ref{Figure.HostedJavaObject} vidíme, že např. obal HostedJavaObject může vytvářet adaptující objekty FunctionEventHandlerAdapter a FunctionEventListenerAdapter. Tyto adaptéry jsou vytvářeny při požadavku na uložení nativní funkce JavaScriptu do některého z rozhraní EventHandler nebo EventListener. V aktuální implementaci není momentálně jednotné místo, které by se staralo o správu těchto adaptérů.
+
+Výše popsaný obal nativních objektů Javy HostedJavaObject je vytvářen v rámci upravené obalující továrny DafaultWrapFactoryDecorator (obrázek \ref{Figure.WrapFactoryDecorator}). Vytvořená obalující továrna nově rozšiřuje třídu WrapFactoryDecorator, která umožňuje řetězení jednotlivých obalujících továren. 
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-script-javascript-wrap-WrapFactoryDecorator.pdf}
+    }
+    \caption{Diagram tříd znázorňující obalující továrny}
+    \label{Figure.WrapFactoryDecorator}
+  \end{center}
+\end{figure}
+
+Pro JavaScriptový engine byly implementovány celkem tři obalující továrny, které se provádí v následujícím pořadí:
+
+\begin{enumerate}
+  \item \textbf{\texttt{AdapterWrapFactoryDecorator}} -- obalující továrna převádějící nativní objekty, jež mají korespondující adaptér v registru adaptéru, na adaptované objekty. Továrna vždy volá následující zřetězenou továrnu;
+  \item \textbf{\texttt{CollectionsWrapFactoryDecorator}} -- obalující továrna převádějící nativní kolekce Javy na objekt HostedJavaCollection, čímž zpřístupňuje jejich prvky ve skriptech. Pokud není nativní objekt kolekcí, pak dochází k zavolání poslední zřetězené továrny;
+  \item \textbf{\texttt{DafaultWrapFactoryDecorator}} -- obalující továrny provádějící převod všech nativních objektů na objekty HostedJavaObject tak, jak bylo popsáno výše.
+\end{enumerate}
+
+\section{Uživatelské rozhraní pro prohlížení stránek}
+\label{Chapter.Implementation.UserInterface}
+
+V kapitole \ref{Chapter.Implementation.ContentHandling} jsme se zabývali zpracováním obsahu zdroje a jeho převodem na dokument. Dalším krokem v reálném prohlížeči by bylo zobrazení dokumentu uživateli a to již během jeho parsování. Jelikož není hotova podpora pro inkrementální a dynamické změny obsahu dokumentu, bylo implementováno zobrazování dokumentu až poté, co parser dokumentu dokončí svůj běh. Jednoduchou komponentu, která umožňuje prohlížení HTML dokumentů, implementuje třída ScriptBrowser. Komponenta vychází ze swingové komponenty BrowserPane implementované v projektu SwingBox.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-ui-ScriptBrowserUserAgent.pdf}
+    }
+    \caption{Diagram tříd znázorňující komponentu k vykreslování dokumentů}
+    \label{Figure.ScriptBrowserUserAgent}
+  \end{center}
+\end{figure}
+
+Třída ScriptBrowser zapouzdřuje procházecí kontext okna, nad kterým registruje odběratele pro události generované navigačním kontrolerem a společnou historií sezení. Přijme-li odběratel událost, která znamená změnu dokumentu, pak tento odběratel volá metodu refresh(), jež způsobí vykreslení dokumentu. Během vykreslení dokumentu je získána reference na objekt EditorKit, nad nímž je zavoláno čtení dokumentu metodou read(). Jelikož dokument je již zpracován, tak metodě read() tento dokument předáme zapouzdřený do vstupního datového toku DocumentInputStream. Metoda read() vnitřně pro vykreslení dokumentu využívá instance ScriptAnalyzer, která byla s komponentou ScriptBrowser asociována během její konstrukce. V rámci metody analyze() třídy ScriptAnalyzer dochází k  získání zapouzdřeného dokumentu ze vstupního datového toku, analyzování objektu DOM třídou DOMAnalyzer a návrhu výsledného vzhledu dokumentu třídou BrowserCanvas.
+
+Každá prohlížecí komponenta ScriptBrowser má asociovanou vlastní obslužnou rutinu pro to, co se má stát, když se klikne na URL odkaz. Obsluhu kliku na hyperlink implementuje třída ScriptBrowserHyperlinkHandler, která vnitřně volá navigační kontroler a statickou metodu followHyperlink(). Kromě obsluhy URL odkazů, komponent implementuje generování událostí myši pro příslušné uzly dokumentu, nad kterými událost nastala. Jelikož komponenta může obsahovat posuvníky, informuje procházecí jednotka ScriptBrowserBrowsingUnit pomocí rozhraní ScrollBar, zda jsou posuvníky aktivni či nikoliv.
+
+\section{Ukázkové aplikace}
+\label{Chapter.Implementation.DemoApplications}
+
+Pro znázornění funkčnosti uživatelského agenta byly implementovány dvě ukázkové spustitelné aplikace, které demonstrují jeho základní funkce. Obě aplikace sloužily k otestování možnosti prohlížet HTML dokumenty. V implementaci se nachází v balíku org.fit.cssbox.scriptbox.ui.
+
+Jednoduchá aplikace, která umožňuje pouze navigování stránek a procházení společné historie sezení, je podrobněji popsána v kapitole \ref{Chapter.Implementation.SimpleBrowser}. Další implementovanou aplikací, která přidává některé ladící komponenty klientského JavaScriptu, se zabývá kapitola \ref{Chapter.Implementation.JavaScriptTester}.  
+
+\subsection{Jednoduchý prohlížeč}
+\label{Chapter.Implementation.SimpleBrowser}
+
+Pro vytvoření jednoduchého prohlížeče bylo zapotřebí definovat nového uživatelského agenta SimpleBrowserUserAgent (obrázek \ref{Figure.SimpleBrowserUiController}), který vytváří jednoduché procházecí jednotky SimpleBrowserBrowsingUnit obsahující uživatelské rozhraní. K implementaci jednoduchého uživatelského rozhraní bylo využito architektury MVP (model-view-presenter) s pasivním pohledem. Presenter v implementaci představuje třída SimpleBrowserUIPresenter, pohled třída SimpleBrowserUI a model uživatelský agent SimpleBrowserUserAgent.
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/org-fit-cssbox-scriptbox-demo-browser-SimpleBrowserUiController.pdf}
+    }
+    \caption{Diagram tříd znázorňující rozšíření uživatelského agenta o uživatelské rozhraní}
+    \label{Figure.SimpleBrowserUiController}
+  \end{center}
+\end{figure}
+
+Během konstrukce procházecí jednotky dochází nejprve k tvorbě presenteru, který v rámci své tvorby vytváří pohled, se kterým je přímo spjat. Jakmile je pohled vytvořen, dochází presenterem k zaregistrování odběratelů událostí nad uživatelskými komponentami pohledu. Kromě odběratelů uživatelských komponent registruje presenter též odběratele u objektů uživatelského agenta, tzn. modelu. Konkrétně jsou zaregistrovány odběratelé nad navigačním kontrolerem hlavního procházecího kontextu a nad společnou historií sezení procházecí jednotky. Po zachycení událostí z navigačního kontroleru nebo společné historie sezení dochází presenterem k pasivní úpravě pohledu. Při dokončení stažení dokumentu je např. aktualizován název aplikace podle titulku stránky, po průchodu společnou historií sezení jsou aktualizovány tlačítka <- a ->.
+
+Výsledný jednoduchý prohlížeč je zobrazen na obrázku \ref{Figure.SimpleBrowserScreenshot}. Prohlížeč umožňuje navigovat nové stránky pomocí navigačního řádku a procházet společnou historii sezení pomocí tlačítek <- a ->. 
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/browser.png}
+    }
+    \caption{Uživatelské rozhraní jednoduchého prohlížeče}
+    \label{Figure.SimpleBrowserScreenshot}
+  \end{center}
+\end{figure}
+
+\subsection{Tester JavaScriptových skriptů}
+\label{Chapter.Implementation.JavaScriptTester}
+
+Během testování funkčnosti uživatelského agenta se naskytla potřeba pro ladění klientských skriptů JavaScriptu -- vznik tzv. testeru. Z tohoto důvodu bylo implementováno rozšíření jednoduchého prohlížeče uvedeného v předešlé kapitole \ref{Chapter.Implementation.SimpleBrowser}. Rozšíření přidalo ke komponentě pro prohlížení dokumentů další tři nové komponenty. Architektura pro tester byla zvolena také typu MVP. Presenter JavaScriptTesterUIPresenter  využívá implementované funkčnosti v presenteru SimpleBrowserUIPresenter. Vzhled pohledu JavaScriptTesterUI byl vytvořen zcela nový, ale implementuje rozhraní BrowserUI společné pro pohled jednoduchého prohlížeče.
+
+První dvě komponenty, které byly navrženy a zcela implementovány umožňují procházet objekty, které jsou definované ve skriptu. Na obrázku \ref{Figure.ScriptObjectViewerAndWatchList} můžeme vidět komponentu ScriptObjectViewer a komponentu ScriptObjectsWatchList. 
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/object-viewer-watch-list.png}
+    }
+    \caption{Komponenta \texttt{ScriptObjectViewer} (zleva) a komponenta \texttt{ScriptObjectsWatchList} (zprava)}
+    \label{Figure.ScriptObjectViewerAndWatchList}
+  \end{center}
+\end{figure}
+
+První komponenta ScriptObjectViewer umožňuje zobrazit všechny atributy objektu, který se jí předá. Společným objektem pro všechny klientské skripty je objekt Window, jehož bylo právě zvoleno pro výpis v aplikaci testeru. Jednotlivé položky ve výpisu nelze ovlivnit a jinak modifikovat. Komponenta je pouze informativní a ukazuje aktuální stav objektu Window.
+
+Druhá komponenta ScriptObjectsWatchList přidává možnost volby objektů, které mají být ve výpisu objektů vypsány. Objekty lze do výpisu kdykoliv přidávat nebo je odstranit.  
+
+Třetí komponenta (obrázek \ref{Figure.SourceCodeComponent}) slouží k procházení staženého zdrojového kódu dokumentu a k jeho případné modifikaci. Pro zvýraznění syntaxe byla použita získaná knihovna jsyntaxpane. V rámci komponenty lze dále vytvářet záložky, do kterých můžeme vkládat zdrojový kód, jenž je možno uložit nebo navigovat. Navigace vytvořeného zdrojového kódu probíhá tak, že se zdrojový kód uloží do složky dočasných souborů, ze které probíhá samotná navigace. 
+
+\begin{figure}[H]
+  \begin{center}
+    \scalebox{0.75}{
+      \includegraphics{fig/source-code.png}
+    }
+    \caption{Komponenta pro zobrazování zdrojového kódu dokumentu}
+    \label{Figure.SourceCodeComponent}
+  \end{center}
+\end{figure}
+
+Výsledná podoba aplikace je znázorněna na obrázku v příloze \ref{Figure.JavaScriptTester}.
 
 \chapter{Závěr}
 \label{Chapter.Final}

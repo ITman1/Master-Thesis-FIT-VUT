@@ -10,8 +10,8 @@
 %============================================================================
 % Šablonu upravil: Ing. Jaroslav Dytrych, xdytry00@stud.fit.vutbr.cz
 %============================================================================
-%\documentclass[cover]{fitthesis} % odevzdani do wisu - odkazy jsou barevné
-\documentclass[cover,print]{fitthesis} % pro tisk - odkazy jsou černé
+\documentclass[cover]{fitthesis} % odevzdani do wisu - odkazy jsou barevné
+%\documentclass[cover,print]{fitthesis} % pro tisk - odkazy jsou černé
 %\documentclass[english,print]{fitthesis} % pro tisk - odkazy jsou černé
 %      \documentclass[english]{fitthesis}
 % * Je-li prace psana v anglickem jazyce, je zapotrebi u tridy pouzit 
@@ -52,6 +52,17 @@
 \usepackage{multirow}
 \usepackage{epstopdf}
 \newcommand\csuv[1]{\quotedblbase #1\textquotedblleft}
+
+\usepackage{color, colortbl}
+\definecolor{Gray}{gray}{0.9}
+
+\usepackage{array}
+\newcolumntype{L}[1]{>{\raggedright\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{C}[1]{>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand*{\thead}[1]{\multicolumn{1}{c|}{\bfseries #1}}
+\newcommand*{\theadStart}[1]{\multicolumn{1}{|c|}{\bfseries #1}}
 
 \usepackage{algorithm2e}
 \usepackage{amsmath}
@@ -95,7 +106,7 @@
 %---------------------------------------------------------------------------
 \projectinfo{
   %Prace
-  project=SP,               %typ prace BP
+  project=DP,               %typ prace BP
   year=2014,                %rok
   date=14. ledna 2014, %\today,              %datum odevzdani
   %Nazev prace
@@ -154,7 +165,7 @@ všechny literární prameny a publikace, ze kterých jsem čerpal, pod vedením
   
   % Seznam obrazku a tabulek (pokud prace obsahuje velke mnozstvi obrazku, tak se to hodi)
   \renewcommand\listfigurename{Seznam obrázků}
-  % \listoffigures
+  \listoffigures
   \renewcommand\listtablename{Seznam tabulek}
   % \listoftables 
 
